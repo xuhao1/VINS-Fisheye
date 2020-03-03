@@ -470,13 +470,13 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
         if (!has_stereo) {
             //We need calculate baseline
             if ((_max - _min).norm() < depth_estimate_baseline) {
-                it_per_id.good_for_solving = true;
-                it_per_id.depth_inited = true;
-                it_per_id.need_triangulation = true;
-                it_per_id.estimated_depth = INIT_DEPTH;
-                if (it_per_id.feature_per_frame.size() >= 4) {
-                    ft->setFeatureStatus(it_per_id.feature_id, 1);            
-                }
+                //it_per_id.good_for_solving = true;
+                //it_per_id.depth_inited = true;
+                //it_per_id.need_triangulation = true;
+                //it_per_id.estimated_depth = INIT_DEPTH;
+                //if (it_per_id.feature_per_frame.size() >= 4) {
+                //    ft->setFeatureStatus(it_per_id.feature_id, 1);            
+                //}
                 continue;
             }
         }
@@ -495,7 +495,7 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
             it_per_id.good_for_solving = false;
             it_per_id.depth_inited = false;
             it_per_id.need_triangulation = true;
-            it_per_id.estimated_depth = localPoint.norm();
+            //it_per_id.estimated_depth = localPoint.norm();
         } else {
             if (it_per_id.feature_per_frame.size() >= 4) {
                 ft->setFeatureStatus(it_per_id.feature_id, 1);            
