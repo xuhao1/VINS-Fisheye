@@ -470,13 +470,20 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
         if (!has_stereo) {
             //We need calculate baseline
             if ((_max - _min).norm() < depth_estimate_baseline) {
-                //Baseline too small; skipping
+                it_per_id.good_for_solving = true;
+                it_per_id.depth_inited = true;
+                it_per_id.need_triangulation = true;
+                it_per_id.estimated_depth = INIT_DEPTH;
+                if (it_per_id.feature_per_frame.size() >= 4) {
+                    ft->setFeatureStatus(it_per_id.feature_id, 1);            
+                }
                 continue;
             }
         }
 
         Eigen::Vector3d point3d;
         double err = triangulatePoint3DPts(poses, ptss, point3d)*FOCAL_LENGTH;
+        Eigen::Vector3d localPoint = origin_pose.leftCols<3>() * point3d + origin_pose.rightCols<1>();
         if (err > triangulate_max_err) {
             // ROS_WARN("Feature ID %d CAM %d IS stereo %d poses %ld dep %d %f AVG ERR: %f", 
             //     it_per_id.feature_id, 
@@ -488,15 +495,17 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
             it_per_id.good_for_solving = false;
             it_per_id.depth_inited = false;
             it_per_id.need_triangulation = true;
+            it_per_id.estimated_depth = localPoint.norm();
         } else {
-            Eigen::Vector3d localPoint;
-            localPoint = origin_pose.leftCols<3>() * point3d + origin_pose.rightCols<1>();
             if (it_per_id.feature_per_frame.size() >= 4) {
                 ft->setFeatureStatus(it_per_id.feature_id, 1);            
             }
             it_per_id.depth_inited = true;
             it_per_id.good_for_solving = true;
             it_per_id.estimated_depth = localPoint.norm();
+            if (!has_stereo && (_max - _min).norm() < depth_estimate_baseline) {
+                it_per_id.estimated_depth = INIT_DEPTH;
+            }
         }
         // ROS_INFO("Pt3d %f %f %f LocalPt %f %f %f", point3d.x(), point3d.y(), point3d.z(), localPoint.x(), localPoint.y(), localPoint.z());
     }
