@@ -47,6 +47,7 @@ class DepthCamManager {
     int show_disparity = 0;
     int enable_extrinsic_calib_for_depth = 0;
     double depth_cloud_radius = 5;
+    double min_z = 1.0;
     camodocal::CameraPtr depth_cam;
 
     std::vector<std::string> dep_RT_config;

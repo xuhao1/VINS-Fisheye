@@ -51,6 +51,7 @@ DepthCamManager::DepthCamManager(ros::NodeHandle & _nh, FisheyeUndist * _fisheye
         estimate_right_depth = (int) fsSettings["enable_right"];
         estimate_rear_depth = (int) fsSettings["enable_rear"];
         downsample_ratio = fsSettings["downsample_ratio"];
+        min_z = fsSettings["min_z"];
 
 
         sgm_params.use_vworks = (int) fsSettings["use_vworks"];
@@ -524,7 +525,9 @@ cv::Mat DepthCamManager::generate_depthmap(cv::Mat pts3d, Eigen::Matrix3d rel_ri
 
             // printf("Py %d Px %d\n", py, px);
             if (py < depth_cam->imageHeight() && px < depth_cam->imageWidth() && px > 0 && py > 0) {
-                depthmap.at<float>(py, px) = z;
+                if (z > min_z) {
+                    depthmap.at<float>(py, px) = z;
+                }
             }
         }
     }
