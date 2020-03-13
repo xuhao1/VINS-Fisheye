@@ -247,10 +247,10 @@ cv::Mat DepthEstimator::ComputeDepthCloud(cv::cuda::GpuMat & left, cv::cuda::Gpu
         cv::threshold(imgDisparity32F, imgDisparity32F, min_val, 1000, cv::THRESH_TOZERO);
     } else {
         dispartitymap.convertTo(imgDisparity32F, CV_32F, 1./16);
-        cv::threshold(imgDisparity32F, imgDisparity32F, params.min_disparity, 1000, cv::THRESH_TOZERO);
+        // cv::threshold(imgDisparity32F, imgDisparity32F, params.min_disparity, 1000, cv::THRESH_TOZERO);
     }
     cv::Mat XYZ = cv::Mat::zeros(imgDisparity32F.rows, imgDisparity32F.cols, CV_32FC3);   // Output point cloud
-    cv::reprojectImageTo3D(imgDisparity32F, XYZ, Q);    // cv::project
+    cv::reprojectImageTo3D(imgDisparity32F, XYZ, Q, true);    // cv::project
 
     return XYZ;
 }
