@@ -24,31 +24,51 @@ This package support CUDA mode and CPU mode with OpenMP enabled. If you are usin
 
 By default, CUDA is automatically detected, however you can disable it by set
 
->set(DETECT_CUDA false)
+```cmake
+set(DETECT_CUDA false)
+```
 
 When using OpenCV, I recommend that you to compile and install opencv 3.4 with CUDA to /usr/local/
 
 If your opencv with CUDA is installed in other localization, modify the
 
->SET("OpenCV_DIR"  "/usr/local/share/OpenCV/")
+```cmake
+SET("OpenCV_DIR"  "/usr/local/share/OpenCV/")
+```
 
 If you don't have visionworks, please 
->set(ENABLE_VWORKS false)
+
+```cmake
+set(ENABLE_VWORKS false)
+```
 
 NVIDIA VisionWorks gives slightly better performance, however, the VisionWorks support for this package is not stable yet.
 
 ### Fisheye usage
-Term 0
->roscore
 
 Term 1
->rosrun vins vins_node ~/your_ws/src/VINS-Fusion-Fisheye/config/fisheye_ptgrey_n3/fisheye.yaml
+
+
+```bash
+#If use CUDA
+roslaunch vins fisheye_split.launch config_file:=/home/your_name/your_ws/src/VINS-Fusion-Fisheye/config/fisheye_ptgrey_n3/fisheye_cuda.yaml
+#If use CPU
+roslaunch vins fisheye_split.launch config_file:=/home/your_name/your_ws/src/VINS-Fusion-Fisheye/config/fisheye_ptgrey_n3/fisheye_cpu.yaml
+```
 
 Term 2
->rosbag play fishey_vins_2020-01-30-10-38-14.bag --clock -s 12
+```bash
+rosbag play fishey_vins_2020-01-30-10-38-14.bag --clock -s 12
+```
 
 Term 3(for visuallization only)
->roslaunch vins vins_rviz.launch
+
+```bash
+roslaunch vins vins_rviz.launch
+```
+
+GPU is default enabled, if you are not using CUDA, disable it in yaml config file.
+
 
 For rosbag, you can download from https://www.dropbox.com/s/kmakksca3ns6cav/fisheye_vins_2020-01-30-10-38-14.bag?dl=0
 ### Parameters for fisheye
@@ -74,10 +94,13 @@ use_vxworks: 0 #use vision works for front-end; not as stable as CUDA now
 enable_depth: 1 # If estimate depth cloud; only available for dual fisheye now
 rgb_depth_cloud: 0 # -1: point no texture,  0 depth cloud will be gray, 1 depth cloud will be colored;
 #Note that textured and colored depth cloud will slow down whole system
+use_gpu: 1 # If using GPU
+use_vworks: 0 # If using visionworks
 ```
+
 Parameter for depth estimation
 
-```yaml;
+```yaml
 #choose the depth you want estimate
 enable_front: 1
 enable_left: 1

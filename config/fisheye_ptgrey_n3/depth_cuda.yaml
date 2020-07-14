@@ -2,40 +2,41 @@
 ---
 
 enable_front: 1
-enable_left: 1
-enable_right: 1
+enable_left: 0
+enable_right: 0
 enable_rear: 0
 downsample_ratio: 1.0
 use_vworks: 0
-block_size: 9
 min_disparity: 1
-num_disp: 32
-disp12Maxdiff: 28
+num_disp: 128
+disp12Maxdiff: 1.0
 prefilterCap: 39
 prefilterSize: 5
-uniquenessRatio: 25
+uniquenessRatio: 0.95
 speckleWindowSize: 300
 speckleRange: 5
 mode: 1
-p1: 2000
-p2: 2500
-# p1: 100
-# p2: 200
+# p1: 2000
+# p2: 2400
+p1: 10
+p2: 120
 
 bt_clip_value: 31
 ct_win_size: 0
 hc_win_size: 1
 scanlines_mask: 255
 
-pub_cloud_step: 1
-show_disparity: 0
+pub_cloud_step: 2
+show_disparity: 1
 pub_depth_map: 1
 flags: 2
 depth_cloud_radius: 10
+min_z: 0.5
 pub_cloud_all: 1
+
 
 enable_extrinsic_calib: 0
 
-# front_depth_RT: "front_depth.yaml"
+# front_depth_RT: "front_dep.yaml"
 # left_depth_RT: "left_depth.yaml"
 # right_depth_RT: "right_depth.yaml"
