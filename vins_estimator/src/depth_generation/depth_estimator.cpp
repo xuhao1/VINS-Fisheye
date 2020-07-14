@@ -15,12 +15,14 @@ bool _show, bool _enable_extrinsic_calib, std::string _output_path):
     cv::eigen2cv(R01, R);
     cv::eigen2cv(t01, T);
 
+
 #ifdef USE_CUDA
     if (!params.use_vworks) {
     	sgmp = new sgm::LibSGMWrapper(params.num_disp, params.p1, params.p2, params.uniquenessRatio, true, 
             sgm::PathType::SCAN_8PATH, params.min_disparity, params.disp12Maxdiff);
     }
 #endif
+
 }
 
 DepthEstimator::DepthEstimator(SGMParams _params, std::string Path, cv::Mat camera_mat,
@@ -31,7 +33,16 @@ bool _show, bool _enable_extrinsic_calib, std::string _output_path):
     cv::FileStorage fsSettings(Path, cv::FileStorage::READ);
     ROS_INFO("Stereo read RT from %s", Path.c_str());
     fsSettings["R"] >> R;
+    cv::Mat Roo;
+    fsSettings["Roo"] >> Roo;
     fsSettings["T"] >> T;
+
+    if (Roo.cols == 3 && Roo.rows == 3) {
+        ROS_INFO("Translate stereo R,T");
+        R = Roo * R * Roo.t();
+        T = Roo * T;
+        std::cout << "Rnew" << R << "\n" << "Tnew" << T.t() << std::endl;
+    }
     fsSettings.release();
 }
     
@@ -50,10 +61,11 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
         cv::Mat _Q;
         cv::Size imgSize = left.size();
 
+        ROS_WARN("Init Q!");
         // std::cout << "ImgSize" << imgSize << "\nR" << R << "\nT" << T << std::endl;
         cv::stereoRectify(cameraMatrix, cv::Mat(), cameraMatrix, cv::Mat(), imgSize, 
             R, T, R1, R2, P1, P2, _Q, 0);
-        std::cout << Q << std::endl;
+        std::cout << "Q" << _Q << std::endl;
         initUndistortRectifyMap(cameraMatrix, cv::Mat(), R1, P1, imgSize, CV_32FC1, _map11,
                                 _map12);
         initUndistortRectifyMap(cameraMatrix, cv::Mat(), R2, P2, imgSize, CV_32FC1, _map21,
