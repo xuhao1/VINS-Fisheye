@@ -10,6 +10,8 @@
 #include "visualization.h"
 #include <vins/VIOKeyframe.h>
 #include <sensor_msgs/PointCloud.h>
+#include <vins/FlattenImages.h>
+#include "cv_bridge/cv_bridge.h"
 
 using namespace ros;
 using namespace Eigen;
@@ -23,7 +25,7 @@ ros::Publisher pub_rectify_pose_left;
 ros::Publisher pub_rectify_pose_right;
 ros::Publisher pub_camera_pose_visual;
 nav_msgs::Path path;
-
+ros::Publisher pub_flatten_images;
 ros::Publisher pub_keyframe_pose;
 ros::Publisher pub_keyframe_point;
 ros::Publisher pub_extrinsic;
@@ -54,9 +56,107 @@ void registerPub(ros::NodeHandle &n)
     pub_extrinsic = n.advertise<nav_msgs::Odometry>("extrinsic", 1000);
     pub_viokeyframe = n.advertise<vins::VIOKeyframe>("viokeyframe", 1000);
     pub_viononkeyframe = n.advertise<vins::VIOKeyframe>("viononkeyframe", 1000);
+    pub_flatten_images = n.advertise<vins::FlattenImages>("flatten_images", 1000);
 
     cameraposevisual.setScale(0.1);
     cameraposevisual.setLineWidth(0.01);
+}
+
+
+geometry_msgs::Pose pose_from_PQ(Eigen::Vector3d P, 
+    const Eigen::Quaterniond & Q) {
+    geometry_msgs::Pose pose;
+    pose.position.x = P.x();
+    pose.position.y = P.y();
+    pose.position.z = P.z();
+    pose.orientation.x = Q.x();
+    pose.orientation.y = Q.y();
+    pose.orientation.z = Q.z();
+    pose.orientation.w = Q.w();
+    return pose;
+}
+
+
+void pubFlattenImages(const Estimator &estimator, const std_msgs::Header &header, 
+    const Eigen::Vector3d & P, const Eigen::Quaterniond & Q, 
+    std::vector<cv::cuda::GpuMat> & up_images, std::vector<cv::cuda::GpuMat> & down_images) {
+    vins::FlattenImages images;
+    images.header = header;
+    images.pose_drone.position.x = P.x();
+    images.pose_drone.position.y = P.y();
+    images.pose_drone.position.z = P.z();
+    images.pose_drone.orientation.x = Q.x();
+    images.pose_drone.orientation.y = Q.y();
+    images.pose_drone.orientation.z = Q.z();
+    images.pose_drone.orientation.w = Q.w();
+    static Eigen::Quaterniond t_left = Eigen::Quaterniond(Eigen::AngleAxisd(-M_PI / 2, Eigen::Vector3d(1, 0, 0)));
+    static Eigen::Quaterniond t_front = t_left * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
+    static Eigen::Quaterniond t_down = Eigen::Quaterniond(Eigen::AngleAxisd(M_PI, Eigen::Vector3d(1, 0, 0)));
+
+    images.extrinsic_up_cams.push_back(
+        pose_from_PQ(estimator.tic[0], Eigen::Quaterniond(estimator.ric[0])*t_front)
+    );
+
+    images.extrinsic_down_cams.push_back(
+        pose_from_PQ(estimator.tic[1], Eigen::Quaterniond(estimator.ric[1])*t_down*t_front)
+    );
+
+    cv::Mat up, down;
+    up_images[2].download(up);
+    down_images[2].download(down);
+    cv_bridge::CvImage outImg;
+    outImg.header = header;
+    outImg.encoding = "bgr8";
+    outImg.image = up;
+    images.up_cams.push_back(*outImg.toImageMsg());
+
+    outImg.image = down;
+    images.down_cams.push_back(*outImg.toImageMsg());
+
+    pub_flatten_images.publish(images);
+}
+
+void pubFlattenImages(const Estimator &estimator, const std_msgs::Header &header, 
+    const Eigen::Vector3d & P, const Eigen::Quaterniond & Q, 
+    std::vector<cv::Mat> & up_images, std::vector<cv::Mat> & down_images) {
+    vins::FlattenImages images;
+    images.header = header;
+    images.pose_drone.position.x = P.x();
+    images.pose_drone.position.y = P.y();
+    images.pose_drone.position.z = P.z();
+    images.pose_drone.orientation.x = Q.x();
+    images.pose_drone.orientation.y = Q.y();
+    images.pose_drone.orientation.z = Q.z();
+    images.pose_drone.orientation.w = Q.w();
+    static Eigen::Quaterniond t_left = Eigen::Quaterniond(Eigen::AngleAxisd(-M_PI / 2, Eigen::Vector3d(1, 0, 0)));
+    static Eigen::Quaterniond t_front = t_left * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
+    static Eigen::Quaterniond t_right = t_front * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
+    static Eigen::Quaterniond t_down = Eigen::Quaterniond(Eigen::AngleAxisd(M_PI, Eigen::Vector3d(1, 0, 0)));
+
+    Eigen::Quaterniond t_arra[3] = {t_left, t_front, t_right};
+    static int count = 0;
+
+    int pub_index = count++ % 3 + 1;
+    images.extrinsic_up_cams.push_back(
+        pose_from_PQ(estimator.tic[0], Eigen::Quaterniond(estimator.ric[0])*t_arra[pub_index-1])
+    );
+
+    images.extrinsic_down_cams.push_back(
+        pose_from_PQ(estimator.tic[1], Eigen::Quaterniond(estimator.ric[1])*t_down*t_arra[pub_index-1])
+    );
+
+    cv::Mat &up = up_images[pub_index];
+    cv::Mat &down = down_images[pub_index];
+    cv_bridge::CvImage outImg;
+    outImg.header = header;
+    outImg.encoding = "bgr8";
+    outImg.image = up;
+    images.up_cams.push_back(*outImg.toImageMsg());
+
+    outImg.image = down;
+    images.down_cams.push_back(*outImg.toImageMsg());
+
+    pub_flatten_images.publish(images);
 }
 
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t)
@@ -76,7 +176,6 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
     pub_latest_odometry.publish(odometry);
-
 
 }
 

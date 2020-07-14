@@ -1,19 +1,17 @@
+#pragma once
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
-#include <opencv2/cudaimgproc.hpp>
+#include "../utility/opencv_cuda.h"
 #include <opencv2/core/eigen.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud.h>
-#include <opencv2/cudastereo.hpp>
+#include "stereo_online_calib.hpp"
 
-#ifndef WITHOUT_VWORKS
-#include <NVX/nvx.h>
-#include <NVX/nvx_opencv_interop.hpp>
-#include "stereo_matching.hpp"
 #include "color_disparity_graph.hpp"
-#include <NVX/nvx.h>
-#include <NVX/nvx_opencv_interop.hpp>
-#endif
+#include "stereo_matching.hpp"
+namespace sgm {
+    class LibSGMWrapper;
+};
 
 struct SGMParams {
     bool use_vworks = true;
@@ -36,13 +34,14 @@ struct SGMParams {
     int flags = 1;
 };
 
-class StereoOnlineCalib;
-
 class DepthEstimator {
     cv::Mat cameraMatrix;
     bool show = false;
     cv::Mat _map11, _map12, _map21, _map22;
+#ifdef USE_CUDA
     cv::cuda::GpuMat map11, map12, map21, map22;
+    sgm::LibSGMWrapper * sgmp;
+#endif
     bool first_init = true;
     cv::Mat R, T, R1, R2, P1, P2, Q;
     double baseline = 0;
@@ -54,7 +53,7 @@ class DepthEstimator {
 
     std::string output_path;
     double extrinsic_calib_rate = 1;
-#ifndef WITHOUT_VWORKS
+#ifdef WITH_VWORKS
     vx_image vx_img_l;
     vx_image vx_img_r;
     vx_image vx_disparity;
@@ -78,6 +77,53 @@ public:
     DepthEstimator(SGMParams _params, std::string Path, cv::Mat camera_mat,
     bool _show, bool _enable_extrinsic_calib, std::string _output_path);
 
+    cv::Mat ComputeDispartiyMap(cv::Mat & left, cv::Mat & right);
     cv::Mat ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right);
-    cv::Mat ComputeDepthCloud(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right);
+
+    template<typename cvMat>
+    cv::Mat ComputeDepthCloud(cvMat & left, cvMat & right) {
+        std::cout << "Computing depth cloud" << std::endl;
+        static int count = 0;
+        int skip = 10/extrinsic_calib_rate;
+        if (skip <= 0) {
+            skip = 1;
+        }
+        if (count ++ % 5 == 0 && enable_extrinsic_calib) {
+            if (online_calib == nullptr) {
+                online_calib = new StereoOnlineCalib(R, T, cameraMatrix, left.cols, left.rows, show);
+            }
+            
+            bool success = online_calib->calibrate_extrincic(left, right);
+            if (success) {
+                R = online_calib->get_rotation();
+                T = online_calib->get_translation();
+                cv::FileStorage fs(output_path, cv::FileStorage::WRITE);
+                fs << "R" << R;
+                fs << "T" << T;
+                fs.release();
+                first_init = true;
+            }
+        }
+        
+        cv::Mat dispartitymap = ComputeDispartiyMap(left, right);
+        int width = left.size().width;
+        int height = left.size().height;
+
+        cv::Mat map3d, imgDisparity32F;
+        if (params.use_vworks) {
+            double min_val = params.min_disparity;
+            double max_val = 0;
+            // dispartitymap.convertTo(imgDisparity32F, CV_32F, (params.num_disp-params.min_disparity)/255.0);
+            // dispartitymap.convertTo(imgDisparity32F, CV_32F, (params.num_disp-params.min_disparity)/255.0);
+            dispartitymap.convertTo(imgDisparity32F, CV_32F, 1./16);
+            cv::threshold(imgDisparity32F, imgDisparity32F, min_val, 1000, cv::THRESH_TOZERO);
+        } else {
+            dispartitymap.convertTo(imgDisparity32F, CV_32F, 1./16);
+            cv::threshold(imgDisparity32F, imgDisparity32F, params.min_disparity, 1000, cv::THRESH_TOZERO);
+        }
+        cv::Mat XYZ = cv::Mat::zeros(imgDisparity32F.rows, imgDisparity32F.cols, CV_32FC3);   // Output point cloud
+        cv::reprojectImageTo3D(imgDisparity32F, XYZ, Q);    // cv::project
+
+        return XYZ;
+    }
 };

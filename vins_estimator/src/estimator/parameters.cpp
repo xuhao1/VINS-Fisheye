@@ -49,11 +49,10 @@ int USE_VXWORKS;
 double depth_estimate_baseline;
 
 int USE_IMU;
-int MULTIPLE_THREAD;
 int USE_GPU;
-int USE_GPU_ACC_FLOW;
 int ENABLE_DOWNSAMPLE;
 int PUB_RECTIFY;
+int USE_ORB;
 Eigen::Matrix3d rectify_R_left;
 Eigen::Matrix3d rectify_R_right;
 map<int, Eigen::Vector3d> pts_gt;
@@ -72,6 +71,7 @@ int MIN_DIST;
 double F_THRESHOLD;
 int SHOW_TRACK;
 int FLOW_BACK;
+
 std::string configPath;
 
 template <typename T>
@@ -92,15 +92,21 @@ T readParam(ros::NodeHandle &n, std::string name)
 
 void readParameters(std::string config_file)
 {
+    /*
     FILE *fh = fopen(config_file.c_str(),"r");
     if(fh == NULL){
         ROS_WARN("config_file dosen't exist; wrong config_file path");
         ROS_BREAK();
         return;          
     }
-    fclose(fh);
+    fclose(fh);*/
 
-    cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
+    cv::FileStorage fsSettings;
+    try {
+        fsSettings.open(config_file.c_str(), cv::FileStorage::READ);
+    } catch(cv::Exception ex) {
+        std::cerr << "ERROR:" << ex.what() << " Can't open config file" << std::endl;
+    }
     if(!fsSettings.isOpened())
     {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
@@ -113,16 +119,24 @@ void readParameters(std::string config_file)
     SIDE_PTS_CNT = fsSettings["side_cnt"];
     MAX_SOLVE_CNT = fsSettings["max_solve_cnt"];
     MIN_DIST = fsSettings["min_dist"];
+
+    USE_ORB = fsSettings["use_orb"];
+
     F_THRESHOLD = fsSettings["F_threshold"];
     SHOW_TRACK = fsSettings["show_track"];
     FLOW_BACK = fsSettings["flow_back"];
     RGB_DEPTH_CLOUD = fsSettings["rgb_depth_cloud"];
     ENABLE_DEPTH = fsSettings["enable_depth"];
     ENABLE_DOWNSAMPLE = fsSettings["enable_downsample"];
-    MULTIPLE_THREAD = fsSettings["multiple_thread"];
     THRES_OUTLIER = fsSettings["thres_outlier"];
     triangulate_max_err = fsSettings["tri_max_err"];
     USE_GPU = fsSettings["use_gpu"];
+#ifndef USE_CUDA
+        if (USE_GPU) {
+            std::cerr << "Must set USE_CUDA on in CMake to enable cuda!!!" << std::endl;
+            exit(-1);
+        }
+#endif
     FISHEYE = fsSettings["is_fisheye"];
     FISHEYE_FOV = fsSettings["fisheye_fov"];
     USE_VXWORKS = fsSettings["use_vxworks"];
@@ -133,8 +147,6 @@ void readParameters(std::string config_file)
     enable_rear_side = fsSettings["enable_rear_side"];
     depth_estimate_baseline = fsSettings["depth_estimate_baseline"];
     ENABLE_PERF_OUTPUT = fsSettings["enable_perf_output"];
-
-    USE_GPU_ACC_FLOW = fsSettings["use_gpu_acc_flow"];
 
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);
@@ -160,12 +172,15 @@ void readParameters(std::string config_file)
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
     fout.close();
 
+    RIC.resize(2);
+    TIC.resize(2);
+
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
     if (ESTIMATE_EXTRINSIC == 2)
     {
         ROS_WARN("have no prior about extrinsic param, calibrate extrinsic param");
-        RIC.push_back(Eigen::Matrix3d::Identity());
-        TIC.push_back(Eigen::Vector3d::Zero());
+        RIC[0] = Eigen::Matrix3d::Identity();
+        TIC[0] = Eigen::Vector3d::Zero();
         EX_CALIB_RESULT_PATH = OUTPUT_FOLDER + "/extrinsic_parameter.csv";
     }
     else 
@@ -182,8 +197,8 @@ void readParameters(std::string config_file)
         fsSettings["body_T_cam0"] >> cv_T;
         Eigen::Matrix4d T;
         cv::cv2eigen(cv_T, T);
-        RIC.push_back(T.block<3, 3>(0, 0));
-        TIC.push_back(T.block<3, 1>(0, 3));
+        RIC[0] = T.block<3, 3>(0, 0);
+        TIC[0] = T.block<3, 1>(0, 3);
     } 
     
     NUM_OF_CAM = fsSettings["num_of_cam"];
@@ -200,12 +215,14 @@ void readParameters(std::string config_file)
     configPath = config_file.substr(0, pn);
 
 
-    depth_config = configPath + "/" + fsSettings["depth_config"];
+    depth_config = configPath + "/" +((std::string) fsSettings["depth_config"]);
 
     std::string cam0Calib;
     fsSettings["cam0_calib"] >> cam0Calib;
     std::string cam0Path = configPath + "/" + cam0Calib;
-    CAM_NAMES.push_back(cam0Path);
+    CAM_NAMES.resize(2);
+
+    CAM_NAMES[0] = cam0Path;
 
     if(NUM_OF_CAM == 2)
     {
@@ -214,15 +231,14 @@ void readParameters(std::string config_file)
         fsSettings["cam1_calib"] >> cam1Calib;
         std::string cam1Path = configPath + "/" + cam1Calib; 
         
-        //printf("%s cam1 path\n", cam1Path.c_str() );
-        CAM_NAMES.push_back(cam1Path);
-        
+        CAM_NAMES[1] = cam1Path;
+
         cv::Mat cv_T;
         fsSettings["body_T_cam1"] >> cv_T;
         Eigen::Matrix4d T;
         cv::cv2eigen(cv_T, T);
-        RIC.push_back(T.block<3, 3>(0, 0));
-        TIC.push_back(T.block<3, 1>(0, 3));
+        RIC[1] = T.block<3, 3>(0, 0);
+        TIC[1] = T.block<3, 1>(0, 3);
         fsSettings["publish_rectify"] >> PUB_RECTIFY;
     }
 
@@ -259,5 +275,5 @@ void readParameters(std::string config_file)
 
     }
 
-    fsSettings.release();
+    //fsSettings.release();
 }

@@ -1,23 +1,11 @@
 #include "depth_estimator.h"
 #include <opencv2/calib3d.hpp>
-#include <opencv2/cudawarping.hpp>
-#include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudastereo.hpp>
+
+#include "../utility/opencv_cuda.h"
+
 #include <opencv2/opencv.hpp>
 #include "../utility/tic_toc.h"
-#include <opencv2/cudafeatures2d.hpp>
 #include "../estimator/parameters.h"
-#include "stereo_online_calib.hpp"
-
-#ifndef WITHOUT_VWORKS
-#ifdef OVX
-extern ovxio::ContextGuard context;
-#else 
-extern vx_context context;
-#endif
-#endif
-
-
 
 DepthEstimator::DepthEstimator(SGMParams _params, Eigen::Vector3d t01, Eigen::Matrix3d R01, cv::Mat camera_mat,
 bool _show, bool _enable_extrinsic_calib, std::string _output_path):
@@ -26,7 +14,15 @@ bool _show, bool _enable_extrinsic_calib, std::string _output_path):
 {
     cv::eigen2cv(R01, R);
     cv::eigen2cv(t01, T);
-    std::cout << "Rnew" << R << "\n" << "Tnew" << T.t() << std::endl;
+
+
+#ifdef USE_CUDA
+    if (!params.use_vworks) {
+    	sgmp = new sgm::LibSGMWrapper(params.num_disp, params.p1, params.p2, params.uniquenessRatio, true, 
+            sgm::PathType::SCAN_8PATH, params.min_disparity, params.disp12Maxdiff);
+    }
+#endif
+
 }
 
 DepthEstimator::DepthEstimator(SGMParams _params, std::string Path, cv::Mat camera_mat,
@@ -51,8 +47,9 @@ bool _show, bool _enable_extrinsic_calib, std::string _output_path):
 }
     
 
-
 cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right) {
+#ifdef USE_CUDA
+    std::cout << "Computing disp for cuda" << std::endl;
     // stereoRectify(InputArray cameraMatrix1, InputArray distCoeffs1, 
     // InputArray cameraMatrix2, InputArray distCoeffs2, 
     //Size imageSize, InputArray R, InputArray T, OutputArray R1, OutputArray R2, OutputArray P1, OutputArray P2, 
@@ -77,65 +74,64 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
         map12.upload(_map12);
         map21.upload(_map21);
         map22.upload(_map22);
+
         _Q.convertTo(Q, CV_32F);
 
         first_init = false;
     } 
 
-    cv::cuda::GpuMat leftRectify, rightRectify, disparity(left.size(), CV_8U);
 
+    cv::cuda::GpuMat leftRectify, rightRectify;
     cv::cuda::remap(left, leftRectify, map11, map12, cv::INTER_LINEAR);
     cv::cuda::remap(right, rightRectify, map21, map22, cv::INTER_LINEAR);
 
+    cv::cuda::GpuMat disparity(leftRectify.size(), CV_8U);
     if (!params.use_vworks) {
-        cv::Mat left_rect, right_rect, disparity;
-        leftRectify.download(left_rect);
-        rightRectify.download(right_rect);
+        cv::Mat disparity;
+        cv::cuda::GpuMat d_disparity;
 
+		sgmp->execute(leftRectify, rightRectify, d_disparity);
+        d_disparity.download(disparity);
         
-        auto sgbm = cv::StereoSGBM::create(params.min_disparity, params.num_disp, params.block_size,
-            params.p1, params.p2, params.disp12Maxdiff, params.prefilterCap, params.uniquenessRatio, params.speckleWindowSize, 
-            params.speckleRange, params.mode);
+        cv::Mat mask = disparity == sgmp->getInvalidDisparity();
 
-        // sgbm->compute(right_rect, left_rect, disparity);
-        sgbm->compute(left_rect, right_rect, disparity);
 
-        ROS_INFO("CPU SGBM time cost %fms", tic.toc());
         if (show) {
-            cv::Mat _show;
-            cv::Mat raw_disp_map = disparity.clone();
-            cv::Mat scaled_disp_map;
-            double min_val, max_val;
-            cv::minMaxLoc(raw_disp_map, &min_val, &max_val, NULL, NULL);
-            raw_disp_map.convertTo(scaled_disp_map, CV_8U, 255/(max_val-min_val), -min_val/(max_val-min_val));
+            cv::Mat disparity_color, disp;
+    	    disparity.convertTo(disp, CV_8U, 255. / params.num_disp);
+
+            cv::applyColorMap(disp, disparity_color, cv::COLORMAP_JET);
+	        disparity.setTo(0, mask);
+	        disparity_color.setTo(cv::Scalar(0, 0, 0), mask);
+
+            cv::Mat _show, left_rect, right_rect;
+            leftRectify.download(left_rect);
+            rightRectify.download(right_rect);
+
+            std::cout << "Size L" << left_rect.size() << " R" << right_rect.size() << "D" << disparity_color.size() << std::endl;
 
             cv::hconcat(left_rect, right_rect, _show);
-            cv::hconcat(_show, scaled_disp_map, _show);
-            // cv::hconcat(left_rect, right_rect, _show);
-            // cv::hconcat(_show, scaled_disp_map, _show);
-            cv::imshow("raw_disp_map", _show);
+            cv::cvtColor(_show, _show, cv::COLOR_GRAY2BGR);
+            cv::hconcat(_show, disparity_color, _show);
+
+            cv::imshow("RAW DISP", _show);
             cv::waitKey(2);
-        }
+        }            
+            
+        ROS_INFO("SGBM time cost %fms", tic.toc());
+
         return disparity;
+
     } else {
-#ifdef WITHOUT_VWORKS
-        ROS_ERROR("You must set enable_vworks to true or disable vworks in depth config file");
-        exit(-1);
-#else
+#ifdef WITH_VWORKS
         leftRectify.copyTo(leftRectify_fix);
         rightRectify.copyTo(rightRectify_fix);
         if (first_use_vworks) {
             auto lsize = leftRectify_fix.size();
-            // disparity_fix = cv::cuda::GpuMat(leftRectify_fix.size(), CV_8U);
-            // disparity_fix_cpu = cv::Mat(leftRectify_fix.size(), CV_8U);
 #ifdef OVX
             vxDirective(context, VX_DIRECTIVE_ENABLE_PERFORMANCE);
             vxRegisterLogCallback(context, &ovxio::stdoutLogCallback, vx_false_e);
 #endif
-            //
-            // Create a NVXIO-based frame source
-            //
-
             StereoMatching::ImplementationType implementationType = StereoMatching::HIGH_LEVEL_API;
             StereoMatching::StereoMatchingParams _params;
             _params.min_disparity = 0;
@@ -214,55 +210,79 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
             cv::waitKey(2);
         }            
         return cv_disp;
-#endif  
+#else
+    std::cerr << "Must set USE_VWORKS on in CMake to enable visionworks!!!" << std::endl;
+    exit(-1);
+    return cv::Mat();
+#endif
     }
+#else
+    std::cerr << "Must set USE_CUDA on in CMake to enable cuda!!!" << std::endl;
+    exit(-1);
+#endif
 }
 
-cv::Mat DepthEstimator::ComputeDepthCloud(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right) {
-    static int count = 0;
-    int skip = 10/extrinsic_calib_rate;
-    if (skip <= 0) {
-        skip = 1;
-    }
-    if (count ++ % 5 == 0) {
-        if(enable_extrinsic_calib) {
+cv::Mat DepthEstimator::ComputeDispartiyMap(cv::Mat & left, cv::Mat & right) {
+    // stereoRectify(InputArray cameraMatrix1, InputArray distCoeffs1, 
+    // InputArray cameraMatrix2, InputArray distCoeffs2, 
+    //Size imageSize, InputArray R, InputArray T, OutputArray R1, OutputArray R2, OutputArray P1, OutputArray P2, 
+    //OutputArray Q,
+    //  int flags=CALIB_ZERO_DISPARITY, double alpha=-1, 
+    // Size newImageSize=Size(), Rect* validPixROI1=0, Rect* validPixROI2=0 )¶
+    TicToc tic;
+    if (first_init) {
+        cv::Mat _Q;
+        cv::Size imgSize = left.size();
 
-            if (online_calib == nullptr) {
-                online_calib = new StereoOnlineCalib(R, T, cameraMatrix, left.cols, left.rows, show);
-            }
-            
-            bool success = online_calib->calibrate_extrincic(left, right);
-            if (success) {
-                R = online_calib->get_rotation();
-                T = online_calib->get_translation();
-                cv::FileStorage fs(output_path, cv::FileStorage::WRITE);
-                fs << "R" << R;
-                fs << "T" << T;
-                fs.release();
-                first_init = true;
-            }
+        // std::cout << "ImgSize" << imgSize << "\nR" << R << "\nT" << T << std::endl;
+        cv::stereoRectify(cameraMatrix, cv::Mat(), cameraMatrix, cv::Mat(), imgSize, 
+            R, T, R1, R2, P1, P2, _Q, 0);
+        std::cout << Q << std::endl;
+        initUndistortRectifyMap(cameraMatrix, cv::Mat(), R1, P1, imgSize, CV_32FC1, _map11,
+                                _map12);
+        initUndistortRectifyMap(cameraMatrix, cv::Mat(), R2, P2, imgSize, CV_32FC1, _map21,
+                                _map22);
+        _Q.convertTo(Q, CV_32F);
+
+        first_init = false;
+    } 
+
+
+    cv::Mat leftRectify, rightRectify, disparity(left.size(), CV_8U);
+    cv::remap(left, leftRectify, _map11, _map12, cv::INTER_LINEAR);
+    cv::remap(right, rightRectify, _map21, _map22, cv::INTER_LINEAR);
+
+    if (!params.use_vworks) {
+        cv::Mat & left_rect = leftRectify;
+        cv::Mat & right_rect = rightRectify;
+        cv::Mat disparity;
+        
+        auto sgbm = cv::StereoSGBM::create(params.min_disparity, params.num_disp, params.block_size,
+            params.p1, params.p2, params.disp12Maxdiff, params.prefilterCap, params.uniquenessRatio, params.speckleWindowSize, 
+            params.speckleRange, params.mode);
+
+        // sgbm->compute(right_rect, left_rect, disparity);
+        sgbm->compute(left_rect, right_rect, disparity);
+
+        ROS_INFO("CPU SGBM time cost %fms", tic.toc());
+        if (show) {
+            cv::Mat _show;
+            cv::Mat raw_disp_map = disparity.clone();
+            cv::Mat scaled_disp_map;
+            double min_val, max_val;
+            cv::minMaxLoc(raw_disp_map, &min_val, &max_val, NULL, NULL);
+            raw_disp_map.convertTo(scaled_disp_map, CV_8U, 255/(max_val-min_val), -min_val/(max_val-min_val));
+
+            cv::hconcat(left_rect, right_rect, _show);
+            cv::hconcat(_show, scaled_disp_map, _show);
+            // cv::hconcat(left_rect, right_rect, _show);
+            // cv::hconcat(_show, scaled_disp_map, _show);
+            cv::imshow("raw_disp_map", _show);
+            cv::waitKey(2);
         }
+        return disparity;
     }
-    
-    cv::Mat dispartitymap = ComputeDispartiyMap(left, right);
-    int width = left.size().width;
-    int height = left.size().height;
-
-    cv::Mat map3d, imgDisparity32F;
-    if (params.use_vworks) {
-        double min_val = params.min_disparity;
-        double max_val = 0;
-        // dispartitymap.convertTo(imgDisparity32F, CV_32F, (params.num_disp-params.min_disparity)/255.0);
-        // dispartitymap.convertTo(imgDisparity32F, CV_32F, (params.num_disp-params.min_disparity)/255.0);
-        dispartitymap.convertTo(imgDisparity32F, CV_32F, 1./16);
-        cv::threshold(imgDisparity32F, imgDisparity32F, min_val, 1000, cv::THRESH_TOZERO);
-    } else {
-        dispartitymap.convertTo(imgDisparity32F, CV_32F, 1./16);
-        // cv::threshold(imgDisparity32F, imgDisparity32F, params.min_disparity, 1000, cv::THRESH_TOZERO);
-    }
-    cv::Mat XYZ = cv::Mat::zeros(imgDisparity32F.rows, imgDisparity32F.cols, CV_32FC3);   // Output point cloud
-    cv::reprojectImageTo3D(imgDisparity32F, XYZ, Q, true);    // cv::project
-
-    return XYZ;
 }
+
+
 

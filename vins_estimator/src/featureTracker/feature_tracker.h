@@ -18,9 +18,8 @@
 #include <csignal>
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
-#include <opencv2/cudaoptflow.hpp>
-#include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudaarithm.hpp>
+
+#include "../utility/opencv_cuda.h"
 
 #include "camodocal/camera_models/CameraFactory.h"
 #include "camodocal/camera_models/CataCamera.h"
@@ -28,9 +27,8 @@
 #include "../estimator/parameters.h"
 #include "../utility/tic_toc.h"
 
-#ifndef WITHOUT_VWORKS
+#ifdef WITH_VWORKS
 #include "vworks_feature_tracker.hpp"
-#include "NVX/nvx_opencv_interop.hpp"
 #endif
 
 using namespace std;
@@ -38,6 +36,8 @@ using namespace camodocal;
 using namespace Eigen;
 
 bool inBorder(const cv::Point2f &pt);
+bool inBorder(const cv::Point2f &pt, cv::Size shape);
+
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status);
 void reduceVector(vector<int> &v, vector<uchar> status);
 
@@ -54,16 +54,26 @@ public:
     Estimator * estimator = nullptr;
     FeatureTracker();
     FeatureFrame trackImage(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
-    FeatureFrame trackImage_fisheye(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1,        
-        std::vector<cv::cuda::GpuMat> & fisheye_imgs_up,
-        std::vector<cv::cuda::GpuMat> & fisheye_imgs_down
-    );
+
+    FeatureFrame trackImage_fisheye(double _cur_time, const std::vector<cv::Mat> & fisheye_imgs_up, const std::vector<cv::Mat> & fisheye_imgs_down);
+
+#ifdef USE_CUDA
+    FeatureFrame trackImage_fisheye(double _cur_time, const std::vector<cv::cuda::GpuMat> & fisheye_imgs_up, const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down);
 
     vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img, 
                         cv::cuda::GpuMat & prev_img, vector<cv::Point2f> & prev_pts, 
                         vector<int> & ids, vector<int> & track_cnt,
                         bool is_lr_track, vector<cv::Point2f> prediction_points = vector<cv::Point2f>());
+#endif
     
+    vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr, 
+                        vector<cv::Mat> * prev_pyr, vector<cv::Point2f> & prev_pts, 
+                        vector<int> & ids, vector<int> & track_cnt, vector<cv::Point2f> prediction_points = vector<cv::Point2f>()) const;
+
+    vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_pyr, 
+                        cv::Mat & prev_img, vector<cv::Mat> * prev_pyr, vector<cv::Point2f> & prev_pts, 
+                        vector<int> & ids, vector<int> & track_cnt, vector<cv::Point2f> prediction_points = vector<cv::Point2f>()) const;
+
     void setMask();
     void setMaskFisheye();
     cv::Mat setMaskFisheye(cv::Size shape, vector<cv::Point2f> & cur_pts, vector<int> & track_cnt, vector<int> & ids);
@@ -96,22 +106,32 @@ public:
     void setup_feature_frame(FeatureFrame & ff, vector<int> ids, vector<cv::Point2f> cur_pts, vector<cv::Point3f> cur_un_pts, vector<cv::Point3f> cur_pts_vel, int camera_id);
     FeatureFrame setup_feature_frame();
     
+#ifdef USE_CUDA
     void drawTrackFisheye(const cv::Mat & img_up, const cv::Mat & img_down, 
                             cv::cuda::GpuMat imUpTop,
                             cv::cuda::GpuMat imDownTop,
                             cv::cuda::GpuMat imUpSide, 
                             cv::cuda::GpuMat imDownSide);
-    
+#endif
+        
+    void drawTrackFisheye(const cv::Mat & img_up, const cv::Mat & img_down, 
+                            cv::Mat imUpTop,
+                            cv::Mat imDownTop,
+                            cv::Mat imUpSide, 
+                            cv::Mat imDownSide);
+
     void drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, vector<int> ids, map<int, cv::Point2f> prev_pts);
 
     void setPrediction(map<int, Eigen::Vector3d> &predictPts);
-    double distance(cv::Point2f &pt1, cv::Point2f &pt2);
     void removeOutliers(set<int> &removePtsIds);
     cv::Mat getTrackImage();
     bool inBorder(const cv::Point2f &pt);
-    bool inBorder(const cv::Point2f &pt, cv::Size shape);
+    bool inBorder(const cv::Point2f &pt, cv::Size shape) const;
+
+    static double distance(cv::Point2f pt1, cv::Point2f pt2);
 
     void detectPoints(const cv::cuda::GpuMat & img, const cv::Mat & mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts);
+    void detectPoints(const cv::Mat & img, const cv::Mat & mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts);
 
     void setFeatureStatus(int feature_id, int status) {
         this->pts_status[feature_id] = status;
@@ -130,9 +150,12 @@ public:
     
     cv::Mat fisheye_mask;
     cv::Mat prev_img, cur_img;
-    cv::cuda::GpuMat prev_gpu_img, cur_gpu_img;
 
+    cv::cuda::GpuMat prev_gpu_img, cur_gpu_img;
     cv::cuda::GpuMat prev_up_top_img, prev_down_top_img, prev_up_side_img;
+
+    cv::Mat prev_up_top_img_cpu, prev_down_top_img_cpu, prev_up_side_img_cpu;
+    std::vector<cv::Mat> * prev_up_top_pyr = nullptr, * prev_down_top_pyr = nullptr, * prev_up_side_pyr = nullptr;
 
     vector<cv::Point2f> n_pts;
     vector<cv::Point2f> n_pts_up_top, n_pts_down_top, n_pts_up_side;
@@ -192,7 +215,7 @@ public:
     int n_id;
     bool hasPrediction;
 
-#ifndef WITHOUT_VWORKS
+#ifdef WITH_VWORKS
     cv::cuda::GpuMat up_side_img_fix;
     cv::cuda::GpuMat down_side_img_fix;
     cv::cuda::GpuMat up_top_img_fix;
