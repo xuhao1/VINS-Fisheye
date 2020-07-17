@@ -200,7 +200,7 @@ void Estimator::processDepthGeneration() {
         ROS_ERROR("Depth generation is only vaild for dual fisheye now");
         return;
     } else {
-        ROS_INFO("Launch depth generation thread");
+        std::cout << "Launch depth generation thread" << std::endl;
     }
 
     std::vector<cv::cuda::GpuMat> fisheye_imgs_up_cuda, fisheye_imgs_down_cuda;
