@@ -79,7 +79,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
                 if(!mat.empty()) {
                     fisheye_imgs_down_cuda.push_back(cv::cuda::GpuMat(mat));
                 } else {
-                    fisheye_imgs_up_cuda.push_back(cv::cuda::GpuMat());
+                    fisheye_imgs_down_cuda.push_back(cv::cuda::GpuMat());
                 }
             }
 
