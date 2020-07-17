@@ -79,18 +79,21 @@ namespace vins_nodelet_pkg
                 vector<cv::Mat> up_cameras, down_cameras;
                 for (auto & cam : flattend_raw->up_cams) {
                     auto img = getImageFromMsg(cam);
-                    up_cameras.push_back(img->image);
+                    if (img!=nullptr) {
+                        up_cameras.push_back(img->image);
+                    } else {
+                        up_cameras.push_back(cv::Mat());
+                    }
                 }
 
                 for (auto & cam : flattend_raw->down_cams) {
                     auto img = getImageFromMsg(cam);
-                    down_cameras.push_back(img->image);
+                    if (img!=nullptr) {
+                        down_cameras.push_back(img->image);
+                    } else {
+                        down_cameras.push_back(cv::Mat());
+                    }
                 }
-
-                auto img = getImageFromMsg(flattend_raw->up_cams[0]);
-
-                // cv::imshow("Up", img->image);
-                // cv::waitKey(10);
 
                 double decode_time = tic.toc();
                 TicToc tic_input;
@@ -110,14 +113,16 @@ namespace vins_nodelet_pkg
             cv_bridge::CvImageConstPtr getImageFromMsg(const sensor_msgs::Image &img_msg)
             {
                 cv_bridge::CvImageConstPtr ptr;
-                // std::cout << "Msg encoding" << img_msg.encoding << std::endl;
-                if (img_msg.encoding == "8UC1")
-                {
-                    ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
-                } else {
-                    ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+                if (img_msg.width > 0) {
+                    if (img_msg.encoding == "8UC1")
+                    {
+                        ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+                    } else {
+                        ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+                    }
+                    return ptr;
                 }
-                return ptr;
+                return nullptr;
             }
             
             cv_bridge::CvImageConstPtr getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)

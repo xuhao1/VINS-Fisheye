@@ -1470,12 +1470,25 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         }
 #endif
     } else {
-        if (up_top_img.channels() == 3) {
-            cv::cuda::cvtColor(up_top_img, up_top_img, cv::COLOR_BGR2GRAY);
-            cv::cuda::cvtColor(down_top_img, down_top_img, cv::COLOR_BGR2GRAY);
-            cv::cuda::cvtColor(up_side_img, up_side_img, cv::COLOR_BGR2GRAY);
-            cv::cuda::cvtColor(down_side_img, down_side_img, cv::COLOR_BGR2GRAY);
-        }
+            if (!up_top_img.empty() && up_top_img.channels() == 3) {
+                std::cout << "CVT uptop" << std::endl;
+                cv::cuda::cvtColor(up_top_img, up_top_img, cv::COLOR_BGR2GRAY);
+            }
+
+            if (!down_top_img.empty() && down_top_img.channels() == 3) {
+                std::cout << "CVT downtop" << std::endl;
+                cv::cuda::cvtColor(down_top_img, down_top_img, cv::COLOR_BGR2GRAY);
+            }
+
+            if (!up_side_img.empty() && up_side_img.channels() == 3) {
+                std::cout << "CVT upside" << std::endl;
+                cv::cuda::cvtColor(up_side_img, up_side_img, cv::COLOR_BGR2GRAY);
+            }
+
+            if (!down_side_img.empty() && down_side_img.channels() == 3) {
+                std::cout << "CVT downside" << std::endl;
+                cv::cuda::cvtColor(down_side_img, down_side_img, cv::COLOR_BGR2GRAY);
+            }
 
         ROS_INFO("CVT Color %fms", t_r.toc());
         

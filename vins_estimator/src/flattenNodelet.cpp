@@ -20,7 +20,7 @@ namespace vins_nodelet_pkg
     class FlattenNodeletClass : public nodelet::Nodelet
     {
         public:
-            FlattenNodeletClass() {}
+            FlattenNodeletClass():mask_up(5, 0), mask_down(5, 0) {}
         private:
             message_filters::Subscriber<sensor_msgs::Image> * image_sub_l;
             message_filters::Subscriber<sensor_msgs::Image> * image_sub_r;
@@ -28,6 +28,7 @@ namespace vins_nodelet_pkg
             vector<FisheyeUndist> fisheys_undists;
 
             ros::Publisher flatten_pub;
+            std::vector<bool> mask_up, mask_down;
 
             virtual void onInit()
             {
@@ -54,6 +55,32 @@ namespace vins_nodelet_pkg
                 sync->registerCallback(boost::bind(&FlattenNodeletClass::img_callback, this, _1, _2));
                 
                 flatten_pub = n.advertise<vins::FlattenImages>("/vins_estimator/flattened_raw", 1);
+
+
+                if (enable_up_top) {
+                    mask_up[0] = true;        
+                }
+
+                if (enable_down_top) {
+                    mask_down[0] = true;
+                }
+
+                if (enable_up_side) {
+                    mask_up[1] = true;
+                    mask_up[2] = true;
+                    mask_up[3] = true;
+                }
+
+                if(enable_rear_side) {
+                    mask_up[4] = true;
+                    mask_down[4] = true;
+                }
+
+                if (enable_down_side) {
+                    mask_down[1] = true;
+                    mask_down[2] = true;
+                    mask_down[3] = true;
+                }
             }
 
             void img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
@@ -76,8 +103,9 @@ namespace vins_nodelet_pkg
 
                 if (USE_GPU) {
                     is_color = true;
-                    fisheye_imgs_up = fisheys_undists[0].undist_all_cuda_cpu(img1->image, is_color); 
-                    fisheye_imgs_down = fisheys_undists[1].undist_all_cuda_cpu(img2->image, is_color);
+                    
+                    fisheye_imgs_up = fisheys_undists[0].undist_all_cuda_cpu(img1->image, is_color, mask_up); 
+                    fisheye_imgs_down = fisheys_undists[1].undist_all_cuda_cpu(img2->image, is_color, mask_down);
                 } else {
                     fisheys_undists[0].stereo_flatten(img1->image, img2->image, &fisheys_undists[1], 
                         fisheye_imgs_up, fisheye_imgs_down, false, 
