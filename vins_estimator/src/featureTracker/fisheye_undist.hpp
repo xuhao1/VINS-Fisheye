@@ -62,10 +62,10 @@ public:
         return output;
 #endif
     }
-
+    
+    cv::cuda::GpuMat img_cuda;
     std::vector<cv::Mat> undist_all_cuda_cpu(const cv::Mat & image, bool use_rgb = false, std::vector<bool> mask = std::vector<bool>(0)) {
 #ifdef USE_CUDA
-        cv::cuda::GpuMat img_cuda;
         bool has_mask = mask.size() == undistMaps.size();
         if (use_rgb) {
             img_cuda.upload(image);
