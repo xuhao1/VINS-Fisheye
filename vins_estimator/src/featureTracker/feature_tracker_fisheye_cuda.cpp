@@ -29,7 +29,6 @@ cv::cuda::GpuMat concat_side(const std::vector<cv::cuda::GpuMat> & arr) {
     } else {
         cv::cuda::GpuMat NewImg(rows, cols*3, arr[1].type()); 
         for (int i = 1; i < 4; i ++) {
-            std::cout << "I" << i << " " << arr[i].size() << std::endl;
             arr[i].copyTo(NewImg(cv::Rect(cols * (i-1), 0, cols, rows)));
         }
         return NewImg;

@@ -108,7 +108,7 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
             leftRectify.download(left_rect);
             rightRectify.download(right_rect);
 
-            std::cout << "Size L" << left_rect.size() << " R" << right_rect.size() << "D" << disparity_color.size() << std::endl;
+            // std::cout << "Size L" << left_rect.size() << " R" << right_rect.size() << "D" << disparity_color.size() << std::endl;
 
             cv::hconcat(left_rect, right_rect, _show);
             cv::cvtColor(_show, _show, cv::COLOR_GRAY2BGR);
