@@ -31,6 +31,9 @@
 #include "vworks_feature_tracker.hpp"
 #endif
 
+#define PYR_LEVEL 3
+#define WIN_SIZE cv::Size(21, 21)
+
 using namespace std;
 using namespace camodocal;
 using namespace Eigen;
@@ -47,6 +50,7 @@ typedef vector<TrackFeature> FeatureFramenoId;
 typedef map<int, FeatureFramenoId> FeatureFrame;
 class Estimator;
 class FisheyeUndist;
+map<int, cv::Point2f> pts_map(vector<int> ids, vector<cv::Point2f> cur_pts);
 
 class FeatureTracker
 {
@@ -238,6 +242,7 @@ public:
     nvx::FeatureTracker* tracker_down_side = nullptr;
 
     void init_vworks_tracker(cv::cuda::GpuMat & up_top_img, cv::cuda::GpuMat & down_top_img, cv::cuda::GpuMat & up_side_img, cv::cuda::GpuMat & down_side_img);
+    FeatureFrame trackImage_fisheye_vworks(double _cur_time, const std::vector<cv::cuda::GpuMat> & fisheye_imgs_up, const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down);
 
     void process_vworks_tracking(nvx::FeatureTracker* _tracker, vector<int> & _ids, vector<cv::Point2f> & prev_pts, vector<cv::Point2f> & cur_pts, 
         vector<int> & _track, vector<cv::Point2f> & n_pts, map<int, int> &_id_by_index, bool debug_output=false);

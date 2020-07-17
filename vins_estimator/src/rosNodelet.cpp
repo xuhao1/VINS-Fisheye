@@ -20,6 +20,14 @@
 #include "vins/FlattenImages.h"
 #include "featureTracker/fisheye_undist.hpp"
 
+#ifdef USE_BACKWARD
+#define BACKWARD_HAS_DW 1
+#include <backward.hpp>
+namespace backward
+{
+    backward::SignalHandling sh;
+}
+#endif
 
 namespace vins_nodelet_pkg
 {

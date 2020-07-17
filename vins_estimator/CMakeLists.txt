@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "-std=c++14 -fopenmp")
 #-DEIGEN_USE_MKL_ALL")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
-set(ENABLE_BACKWARD false)
+set(ENABLE_BACKWARD true)
 set(ENABLE_VWORKS false)
 set(DETECT_CUDA true)
 # SET("OpenCV_DIR"  "/usr/local/share/OpenCV/")
@@ -114,6 +114,9 @@ add_library(stereo_depth
 
 add_library(vins_frontend
     src/featureTracker/feature_tracker.cpp
+    src/featureTracker/feature_tracker_fisheye_cuda.cpp
+    src/featureTracker/feature_tracker_fisheye_vworks.cpp
+    src/featureTracker/feature_tracker_fisheye.cpp
     src/featureTracker/vworks_feature_tracker.cpp
 )
 
