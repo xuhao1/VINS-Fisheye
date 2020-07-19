@@ -52,46 +52,17 @@ void Estimator::setParameter()
 }
 
 void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1, 
-        const CvImages & fisheye_imgs_up_cpu, 
-        const CvImages & fisheye_imgs_down_cpu)
+        const CvImages & fisheye_imgs_up, 
+        const CvImages & fisheye_imgs_down)
 {
     static int img_track_count = 0;
     static double sum_time = 0;
     inputImageCnt++;
     FeatureFrame featureFrame;
     TicToc featureTrackerTime;
-    vector<cv::cuda::GpuMat> fisheye_imgs_up_cuda, fisheye_imgs_down_cuda;
-    const CvImages & fisheye_imgs_up = fisheye_imgs_up_cpu;
-    const CvImages & fisheye_imgs_down = fisheye_imgs_down_cpu;
 
     if (FISHEYE) {
-        if (USE_GPU) {
-#ifdef USE_CUDA
-            for (auto & mat: fisheye_imgs_up_cpu) {
-                if(!mat.empty()) {
-                    fisheye_imgs_up_cuda.push_back(cv::cuda::GpuMat(mat));
-                } else {
-                    fisheye_imgs_up_cuda.push_back(cv::cuda::GpuMat());
-                }
-            }
-
-            for (auto & mat: fisheye_imgs_down_cpu) {
-                if(!mat.empty()) {
-                    fisheye_imgs_down_cuda.push_back(cv::cuda::GpuMat(mat));
-                } else {
-                    fisheye_imgs_down_cuda.push_back(cv::cuda::GpuMat());
-                }
-            }
-
-            ROS_INFO("Tracking cuda images");
-            featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
-#else
-        std::cerr << "Must set USE_CUDA on in CMake to enable cuda!!!" << std::endl;
-        exit(-1);
-#endif
-        } else {
             featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up, fisheye_imgs_down);
-        }
     } else {
         if(_img1.empty())
             featureFrame = featureTracker.trackImage(t, _img);
@@ -109,13 +80,37 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
         mBuf.lock();
         featureBuf.push(make_pair(t, featureFrame));
         if (FISHEYE && ENABLE_DEPTH) {
-            if (USE_GPU) {
-                fisheye_imgs_upBuf_cuda.push(fisheye_imgs_up_cuda);
-                fisheye_imgs_downBuf_cuda.push(fisheye_imgs_down_cuda);
-            } else {
-                fisheye_imgs_upBuf.push(fisheye_imgs_up);
-                fisheye_imgs_downBuf.push(fisheye_imgs_down);
-            }
+            fisheye_imgs_upBuf.push(fisheye_imgs_up);
+            fisheye_imgs_downBuf.push(fisheye_imgs_down);
+            fisheye_imgs_stampBuf.push(t);
+        }
+        mBuf.unlock();
+    }
+}
+
+void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up_cuda, 
+        const CvCudaImages & fisheye_imgs_down_cuda)
+{
+    static int img_track_count = 0;
+    static double sum_time = 0;
+    inputImageCnt++;
+    FeatureFrame featureFrame;
+    TicToc featureTrackerTime;
+
+    featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
+
+    double dt = featureTrackerTime.toc();
+    sum_time += dt;
+    img_track_count ++;
+
+    printf("featureTracker time: AVG %f NOW %f inputImageCnt %d\n", sum_time/img_track_count, dt, inputImageCnt);
+    if(inputImageCnt % 2 == 0)
+    {
+        mBuf.lock();
+        featureBuf.push(make_pair(t, featureFrame));
+        if (FISHEYE && ENABLE_DEPTH) {
+            fisheye_imgs_upBuf_cuda.push(fisheye_imgs_up_cuda);
+            fisheye_imgs_downBuf_cuda.push(fisheye_imgs_down_cuda);
             fisheye_imgs_stampBuf.push(t);
         }
         mBuf.unlock();

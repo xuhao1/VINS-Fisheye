@@ -42,6 +42,7 @@ class DepthCamManager;
 
 typedef std::pair<Eigen::Matrix3d, Eigen::Vector3d> EigenPose;
 typedef std::vector<cv::Mat> CvImages;
+typedef std::vector<cv::cuda::GpuMat> CvCudaImages;
 class Estimator
 {
   public:
@@ -56,6 +57,9 @@ class Estimator
     void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat(), 
         const CvImages & up_imgs = CvImages(0), 
         const CvImages & down_imgs = CvImages(0));
+
+    void inputFisheyeImage(double t, const CvCudaImages & up_imgs, const CvCudaImages & down_imgs);
+
     void processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const FeatureFrame &image, const double header);
     void processMeasurements();

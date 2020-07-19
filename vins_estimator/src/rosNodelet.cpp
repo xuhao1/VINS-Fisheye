@@ -29,6 +29,174 @@ namespace backward
 }
 #endif
 
+#include <nodelet/nodelet.h>
+#include <pluginlib/class_list_macros.h>
+#include <ros/ros.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
+#include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
+#include "estimator/parameters.h"
+#include <boost/thread.hpp>
+#include "depth_generation/depth_camera_manager.h"
+#include "featureTracker/fisheye_undist.hpp"
+#include "camodocal/camera_models/CameraFactory.h"
+#include "camodocal/camera_models/CataCamera.h"
+#include "camodocal/camera_models/PinholeCamera.h"
+#include "utility/tic_toc.h"
+#include "vins/FlattenImages.h"
+#include "utility/opencv_cuda.h"
+
+class FisheyeFlattenHandler
+{
+    vector<FisheyeUndist> fisheys_undists;
+
+    ros::Publisher flatten_pub;
+    std::vector<bool> mask_up, mask_down;
+
+    bool is_color = false;
+
+    public:
+
+        std::vector<cv::cuda::GpuMat> fisheye_up_imgs_cuda, fisheye_down_imgs_cuda;
+        std::vector<cv::Mat> fisheye_up_imgs, fisheye_down_imgs;
+        
+        FisheyeFlattenHandler(ros::NodeHandle & n): mask_up(5, 0), mask_down(5, 0) 
+        {
+
+            readIntrinsicParameter(CAM_NAMES);
+
+            flatten_pub = n.advertise<vins::FlattenImages>("/vins_estimator/flattened_raw", 1);
+
+            if (enable_up_top) {
+                mask_up[0] = true;        
+            }
+
+            if (enable_down_top) {
+                mask_down[0] = true;
+            }
+
+            if (enable_up_side) {
+                mask_up[1] = true;
+                mask_up[2] = true;
+                mask_up[3] = true;
+            }
+
+            if(enable_rear_side) {
+                mask_up[4] = true;
+                mask_down[4] = true;
+            }
+
+            if (enable_down_side) {
+                mask_down[1] = true;
+                mask_down[2] = true;
+                mask_down[3] = true;
+            }
+        }
+
+        void img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
+        {
+            auto img1 = getImageFromMsg(img1_msg);
+            auto img2 = getImageFromMsg(img2_msg);
+
+            static double flatten_time_sum = 0;
+            static double count = 0;
+
+            count += 1;
+
+            TicToc t_f;
+
+
+            if (USE_GPU) {
+                is_color = true;
+                fisheye_up_imgs_cuda = fisheys_undists[0].undist_all_cuda(img1->image, is_color, mask_up); 
+                fisheye_down_imgs_cuda = fisheys_undists[1].undist_all_cuda(img2->image, is_color, mask_down);
+            } else {
+                fisheys_undists[0].stereo_flatten(img1->image, img2->image, &fisheys_undists[1], 
+                    fisheye_up_imgs, fisheye_down_imgs, false, 
+                    enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
+            }
+
+            ROS_WARN("Flatten cost %fms", t_f.toc() , "Flatten AVG %fms", flatten_time_sum/count);
+
+            flatten_time_sum += t_f.toc();
+        }
+
+
+        void pack_and_send() {
+            TicToc t_p;
+            vins::FlattenImages images;
+            static double pack_send_time = 0;
+
+            // images.header = img1_msg->header;
+            static int count = 0;
+            count ++;
+
+            for (unsigned int i = 0; i < fisheye_up_imgs.size(); i++) {
+                cv_bridge::CvImage outImg;
+                // outImg.header = img1_msg->header;
+                if (is_color) {
+                    outImg.encoding = "bgr8";
+                } else {
+                    outImg.encoding = "mono8";
+                }
+
+                outImg.image = fisheye_up_imgs[i];
+                images.up_cams.push_back(*outImg.toImageMsg());
+            }
+
+            for (unsigned int i = 0; i < fisheye_down_imgs.size(); i++) {
+                cv_bridge::CvImage outImg;
+                // outImg.header = img1_msg->header;
+                if (is_color) {
+                    outImg.encoding = "bgr8";
+                } else {
+                    outImg.encoding = "mono8";
+                }
+
+                outImg.image = fisheye_up_imgs[i];
+                images.down_cams.push_back(*outImg.toImageMsg());
+            }
+
+            flatten_pub.publish(images);
+            pack_send_time += t_p.toc();
+
+            ROS_INFO("Pack and send AVG %fms", pack_send_time/count);
+        }
+
+
+        void readIntrinsicParameter(const vector<string> &calib_file)
+        {
+            for (size_t i = 0; i < calib_file.size(); i++)
+            {
+                if (FISHEYE) {
+                    ROS_INFO("Flatten read fisheye %s, id %ld", calib_file[i].c_str(), i);
+                    FisheyeUndist un(calib_file[i].c_str(), i, FISHEYE_FOV, true, COL);
+                    fisheys_undists.push_back(un);
+                }
+            }
+        }
+
+
+        cv_bridge::CvImageConstPtr getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
+        {
+            cv_bridge::CvImageConstPtr ptr;
+            if (img_msg->encoding == "8UC1")
+            {
+                ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::MONO8);
+            }
+            else
+            {
+                if (FISHEYE) {
+                    ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8);
+                } else {
+                    ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);        
+                }
+            }
+            return ptr;
+        }
+};
+
 namespace vins_nodelet_pkg
 {
     class VinsNodeletClass : public nodelet::Nodelet
@@ -38,6 +206,7 @@ namespace vins_nodelet_pkg
         private:
             message_filters::Subscriber<sensor_msgs::Image> * image_sub_l;
             message_filters::Subscriber<sensor_msgs::Image> * image_sub_r;
+            FisheyeFlattenHandler * fisheye_handler;
 
             DepthCamManager * cam_manager = nullptr;
             virtual void onInit()
@@ -69,46 +238,32 @@ namespace vins_nodelet_pkg
                 sub_imu = n.subscribe(IMU_TOPIC, 2000, &VinsNodeletClass::imu_callback, this);
                 sub_restart = n.subscribe("/vins_restart", 100, &VinsNodeletClass::restart_callback, this);
 
-                if(!fisheye_external_flatten) {
-                    ROS_INFO("Will directly receive raw images");
-                    image_sub_l = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE0_TOPIC, 100);
-                    image_sub_r = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE1_TOPIC, 100);
-                    sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> (*image_sub_l, *image_sub_r, 10);
+                ROS_INFO("Will directly receive raw images");
+                image_sub_l = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE0_TOPIC, 100);
+                image_sub_r = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE1_TOPIC, 100);
+                sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> (*image_sub_l, *image_sub_r, 10);
+
+                if (FISHEYE) {
+                    sync->registerCallback(boost::bind(&VinsNodeletClass::fisheye_imgs_callback, this, _1, _2));
+                    fisheye_handler = new FisheyeFlattenHandler(n);
+                } else {    
                     sync->registerCallback(boost::bind(&VinsNodeletClass::img_callback, this, _1, _2));
-                } else {
-                    ROS_INFO("Will directly receive flattened images");
-                    flatten_sub = n.subscribe("/vins_estimator/flattened_raw", 2000, &VinsNodeletClass::flatten_callback, this);
                 }
             }
 
-            void flatten_callback(const vins::FlattenImagesConstPtr & flattend_raw) {
-                // ROS_INFO("Recevied flattened images");
-                TicToc tic;
-                vector<cv::Mat> up_cameras, down_cameras;
-                for (auto & cam : flattend_raw->up_cams) {
-                    auto img = getImageFromMsg(cam);
-                    if (img!=nullptr) {
-                        up_cameras.push_back(img->image);
-                    } else {
-                        up_cameras.push_back(cv::Mat());
-                    }
-                }
-
-                for (auto & cam : flattend_raw->down_cams) {
-                    auto img = getImageFromMsg(cam);
-                    if (img!=nullptr) {
-                        down_cameras.push_back(img->image);
-                    } else {
-                        down_cameras.push_back(cv::Mat());
-                    }
-                }
-
-                double decode_time = tic.toc();
+            void fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg) {
                 TicToc tic_input;
-                // ROS_INFO("Will track %ld %ld", up_cameras.size(), down_cameras.size());
-                estimator.inputImage(flattend_raw->header.stamp.toSec(), cv::Mat(), cv::Mat(), up_cameras, down_cameras);
+                fisheye_handler->img_callback(img1_msg, img1_msg);
 
-                ROS_INFO("Decode: %fms. Input Image: %fms", decode_time, tic_input.toc());
+                if (USE_GPU) {
+                    estimator.inputFisheyeImage(img1_msg->header.stamp.toSec(), 
+                        fisheye_handler->fisheye_up_imgs_cuda, fisheye_handler->fisheye_down_imgs_cuda);
+                } else {
+                    estimator.inputImage(img1_msg->header.stamp.toSec(), cv::Mat(), cv::Mat(), 
+                        fisheye_handler->fisheye_up_imgs, fisheye_handler->fisheye_down_imgs);
+                }
+
+                ROS_INFO("Input Image: %fms", tic_input.toc());
             }
 
             void img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)

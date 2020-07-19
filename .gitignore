@@ -80,3 +80,7 @@ camera_models/build/gtest/googlemock/cmake_install.cmake
 camera_models/build/gtest/googlemock/CTestTestfile.cmake
 camera_models/build/gtest/googlemock/gtest/cmake_install.cmake
 camera_models/build/gtest/googlemock/gtest/CTestTestfile.cmake
+vins_estimator/GPATH
+vins_estimator/GRTAGS
+vins_estimator/GTAGS
+.gitignore
