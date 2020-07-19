@@ -276,7 +276,7 @@ namespace vins_nodelet_pkg
 
             void fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg) {
                 TicToc tic_input;
-                fisheye_handler->img_callback(img1_msg, img1_msg);
+                fisheye_handler->img_callback(img1_msg, img2_msg);
 
                 if (USE_GPU) {
                     estimator.inputFisheyeImage(img1_msg->header.stamp.toSec(), 
