@@ -59,6 +59,7 @@ class FisheyeFlattenHandler
     public:
 
         std::vector<cv::cuda::GpuMat> fisheye_up_imgs_cuda, fisheye_down_imgs_cuda;
+        std::vector<cv::cuda::GpuMat> fisheye_up_imgs_cuda_gray, fisheye_down_imgs_cuda_gray;
         std::vector<cv::Mat> fisheye_up_imgs, fisheye_down_imgs;
         
         FisheyeFlattenHandler(ros::NodeHandle & n): mask_up(5, 0), mask_down(5, 0) 
@@ -110,7 +111,27 @@ class FisheyeFlattenHandler
             if (USE_GPU) {
                 is_color = true;
                 fisheye_up_imgs_cuda = fisheys_undists[0].undist_all_cuda(img1->image, is_color, mask_up); 
+                fisheye_up_imgs_cuda_gray.clear();
+                fisheye_down_imgs_cuda_gray.clear();
+
+                for (auto & img: fisheye_up_imgs_cuda) {
+                    cv::cuda::GpuMat gray;
+                    if(!img.empty()) {
+                        cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                    }
+                    fisheye_up_imgs_cuda_gray.push_back(gray);
+                }
+
                 fisheye_down_imgs_cuda = fisheys_undists[1].undist_all_cuda(img2->image, is_color, mask_down);
+                for (auto & img: fisheye_down_imgs_cuda) {
+                    cv::cuda::GpuMat gray;
+                    if(!img.empty()) {
+                        cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                    }
+
+                    fisheye_down_imgs_cuda_gray.push_back(gray);
+                }
+
             } else {
                 fisheys_undists[0].stereo_flatten(img1->image, img2->image, &fisheys_undists[1], 
                     fisheye_up_imgs, fisheye_down_imgs, false, 
@@ -257,7 +278,7 @@ namespace vins_nodelet_pkg
 
                 if (USE_GPU) {
                     estimator.inputFisheyeImage(img1_msg->header.stamp.toSec(), 
-                        fisheye_handler->fisheye_up_imgs_cuda, fisheye_handler->fisheye_down_imgs_cuda);
+                        fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray);
                 } else {
                     estimator.inputImage(img1_msg->header.stamp.toSec(), cv::Mat(), cv::Mat(), 
                         fisheye_handler->fisheye_up_imgs, fisheye_handler->fisheye_down_imgs);
