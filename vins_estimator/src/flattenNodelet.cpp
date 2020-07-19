@@ -112,6 +112,8 @@ namespace vins_nodelet_pkg
                         enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
                 }
 
+                ROS_WARN("Flatten cost %fms", t_f.toc());
+
                 flatten_time_sum += t_f.toc();
 
                 TicToc t_p;

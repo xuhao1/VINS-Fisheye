@@ -9,6 +9,7 @@
 #include <camodocal/camera_models/PinholeCamera.h>
 #include "cv_bridge/cv_bridge.h"
 #include "../utility/opencv_cuda.h"
+#include "../utility/tic_toc.h"
 
 #define DEG_TO_RAD (M_PI / 180.0)
 
@@ -66,6 +67,7 @@ public:
     cv::cuda::GpuMat img_cuda;
     std::vector<cv::Mat> undist_all_cuda_cpu(const cv::Mat & image, bool use_rgb = false, std::vector<bool> mask = std::vector<bool>(0)) {
 #ifdef USE_CUDA
+        TicToc up;
         bool has_mask = mask.size() == undistMaps.size();
         if (use_rgb) {
             img_cuda.upload(image);
@@ -75,13 +77,20 @@ public:
             img_cuda.upload(_tmp);
         }
 
+        std::cout << "Upload cost " << up.toc() << std::endl;
+
+
         std::vector<cv::Mat> ret;
         for (unsigned int i = 0; i < undistMaps.size(); i++) {
             cv::Mat tmp;
             if (!has_mask || (has_mask && mask[i]) ) {
                 cv::cuda::GpuMat output;
+                TicToc remap;
                 cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], cv::INTER_LINEAR);
+                std::cout << "Remap cost " << remap.toc() << std::endl;
+                TicToc down;
                 output.download(tmp);
+                std::cout << "Download cost " << down.toc() << std::endl;
             }
             ret.push_back(tmp);
         }
