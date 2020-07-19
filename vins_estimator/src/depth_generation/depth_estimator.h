@@ -82,7 +82,6 @@ public:
 
     template<typename cvMat>
     cv::Mat ComputeDepthCloud(cvMat & left, cvMat & right) {
-        std::cout << "Computing depth cloud" << std::endl;
         static int count = 0;
         int skip = 10/extrinsic_calib_rate;
         if (skip <= 0) {

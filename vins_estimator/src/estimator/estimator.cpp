@@ -74,7 +74,6 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
     sum_time += dt;
     img_track_count ++;
 
-    printf("featureTracker time: AVG %f NOW %f inputImageCnt %d\n", sum_time/img_track_count, dt, inputImageCnt);
     if(inputImageCnt % 2 == 0)
     {
         mBuf.lock();
@@ -89,7 +88,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
 }
 
 void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up_cuda, 
-        const CvCudaImages & fisheye_imgs_down_cuda)
+        const CvCudaImages & fisheye_imgs_down_cuda, bool is_blank_init)
 {
     static int img_track_count = 0;
     static double sum_time = 0;
@@ -98,12 +97,19 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
     TicToc featureTrackerTime;
 
     featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
+    if (is_blank_init) {
+        return;
+    }
 
     double dt = featureTrackerTime.toc();
     sum_time += dt;
     img_track_count ++;
 
     printf("featureTracker time: AVG %f NOW %f inputImageCnt %d\n", sum_time/img_track_count, dt, inputImageCnt);
+
+
+    printf("featureTracker time: AVG %f NOW %f inputImageCnt %d Bufsize %ld imgs buf Size %ld\n", 
+        sum_time/img_track_count, dt, inputImageCnt, featureBuf.size(), fisheye_imgs_upBuf_cuda.size());
     if(inputImageCnt % 2 == 0)
     {
         mBuf.lock();
@@ -156,16 +162,23 @@ bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::
         return false;
     }
     //printf("get imu from %f %f\n", t0, t1);
-    //printf("imu fornt time %f   imu end time %f\n", accBuf.front().first, accBuf.back().first);
+    double t_ss = 0;
+    double t_s = 0;
+    double t_e = 0;
     if(t1 <= accBuf.back().first)
     {
+        t_ss = accBuf.front().first;
+
         while (accBuf.front().first <= t0)
         {
             accBuf.pop();
             gyrBuf.pop();
         }
+
+        t_s = accBuf.front().first;
         while (accBuf.front().first < t1)
         {
+            t_e = accBuf.front().first;
             accVector.push_back(accBuf.front());
             accBuf.pop();
             gyrVector.push_back(gyrBuf.front());
@@ -179,6 +192,12 @@ bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::
         printf("wait for imu\n");
         return false;
     }
+
+    if (fabs(t_s - t0) > 0.01 || fabs(t_e - t1) > 0.01) {
+        ROS_WARN("IMU wrong sampling dt1 %f dts0 %fms dts %f dte %f\n", t1 - t0, t_ss - t0, t_s - t0, t_e - t0);
+    }
+
+
     return true;
 }
 
@@ -203,7 +222,6 @@ void Estimator::processDepthGeneration() {
 
     while(ros::ok()) {
         if (!fisheye_imgs_upBuf.empty() || !fisheye_imgs_upBuf_cuda.empty()) {
-            printf("Depth getting imgs\n");
             double t = fisheye_imgs_stampBuf.front();
             if (USE_GPU) {
                 fisheye_imgs_up_cuda = fisheye_imgs_upBuf_cuda.front();
@@ -233,10 +251,8 @@ void Estimator::processDepthGeneration() {
 
             TicToc tic;
             if (USE_GPU) {
-                std::cout << "Using CUDA Mat for depth" << fisheye_imgs_up_cuda.size() << ":" << fisheye_imgs_down_cuda.size() << std::endl;
                 depth_cam_manager->update_images_to_buf(fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
             } else {
-                std::cout << "Using cvMat for depth" << fisheye_imgs_up_cuda.size() << ":" << fisheye_imgs_down_cuda.size() << std::endl;
                 depth_cam_manager->update_images_to_buf(fisheye_imgs_up, fisheye_imgs_down);
             }
 
@@ -314,14 +330,18 @@ void Estimator::processMeasurements()
                     break;
                 else
                 {
-                    printf("wait for imu ... \n");
+                    printf("wait for imu ... TD%f\n", td);
                     std::chrono::milliseconds dura(5);
                     std::this_thread::sleep_for(dura);
                 }
             }
             mBuf.lock();
-            if(USE_IMU)
+            if(USE_IMU) {
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
+                if (curTime - prevTime > 0.11 || accVector.size()/(curTime - prevTime ) < 350) {
+                    ROS_WARN("Long IMU dt %fms or wrong IMU rate %fms", curTime - prevTime, accVector.size()/(curTime - prevTime));
+                } 
+            }
 
             featureBuf.pop();
             mBuf.unlock();
@@ -1773,11 +1793,6 @@ void Estimator::fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Ei
 
     double dt = t - latest_time;
     if (dt > 0.03) {
-        printf("LA %f %f %f\n", 
-            linear_acceleration.x(),
-            linear_acceleration.y(),
-            linear_acceleration.z()
-        );
         ROS_ERROR("DT %4.2fms t %f lt %f", dt*1000, (t-base)*1000, (latest_time-base)*1000);
         // exit(-1);
     }

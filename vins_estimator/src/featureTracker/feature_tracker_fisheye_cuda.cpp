@@ -184,7 +184,8 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
 
 FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,   
         const std::vector<cv::cuda::GpuMat> & fisheye_imgs_up,
-        const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down) {
+        const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down,
+        bool is_blank_init) {
     cur_time = _cur_time;
 
     TicToc t_r;
@@ -232,6 +233,12 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         ROS_INFO("CVT Color %fms", t_r.toc());
         
         //If has predict;
+        if (is_blank_init) {
+            prev_up_top_pts.push_back(cv::Point(10, 10));
+            prev_up_side_pts.push_back(cv::Point(10, 10));
+            prev_down_top_pts.push_back(cv::Point(10, 10));
+        }
+
         if (enable_up_top) {
             // ROS_INFO("Tracking top");
             cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_img, prev_up_top_pts, ids_up_top, track_up_top_cnt, false);
@@ -273,6 +280,16 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
             cur_down_side_pts = opticalflow_track(down_side_img, up_side_img, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
             // ROS_INFO("Down side try to track %ld pts; gives %ld:%ld", cur_up_side_pts.size(), cur_down_side_pts.size(), ids_down_side.size());
         }
+    }
+
+    if (is_blank_init) {
+
+        prev_up_top_pts.clear();
+        prev_up_side_pts.clear();
+        prev_down_top_pts.clear();
+
+        auto ff = setup_feature_frame();
+        return ff;
     }
 
     //Undist points

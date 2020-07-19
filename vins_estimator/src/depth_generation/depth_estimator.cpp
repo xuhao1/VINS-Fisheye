@@ -49,7 +49,6 @@ bool _show, bool _enable_extrinsic_calib, std::string _output_path):
 
 cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right) {
 #ifdef USE_CUDA
-    std::cout << "Computing disp for cuda" << std::endl;
     // stereoRectify(InputArray cameraMatrix1, InputArray distCoeffs1, 
     // InputArray cameraMatrix2, InputArray distCoeffs2, 
     //Size imageSize, InputArray R, InputArray T, OutputArray R1, OutputArray R2, OutputArray P1, OutputArray P2, 

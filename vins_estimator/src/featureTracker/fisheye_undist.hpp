@@ -33,13 +33,17 @@ public:
     bool enable_cuda = false;
     int cam_id = 0;
 
+    double raw_width;
+    double raw_height;
+
     int sideImgHeight = 0;
 
     FisheyeUndist(const std::string & camera_config_file, int _id, double _fov, bool _enable_cuda = true, int imgWidth = 600):
     imgWidth(imgWidth), fov(_fov), cameraRotation(0, 0, 0), enable_cuda(_enable_cuda), cam_id(_id) {
         cam = camodocal::CameraFactory::instance()
             ->generateCameraFromYamlFile(camera_config_file);
-
+        raw_width = cam->imageWidth();
+        raw_height = cam->imageHeight();
         undistMaps = generateAllUndistMap(cam, cameraRotation, imgWidth, fov);
         // ROS_INFO("undismap size %ld", undistMaps.size());
         if (enable_cuda) {
