@@ -209,77 +209,73 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     cur_down_top_un_pts.clear();
     cur_down_side_un_pts.clear();
 
-   {
-            if (!up_top_img.empty() && up_top_img.channels() == 3) {
-                std::cout << "CVT uptop" << std::endl;
-                cv::cuda::cvtColor(up_top_img, up_top_img, cv::COLOR_BGR2GRAY);
-            }
+    if (!up_top_img.empty() && up_top_img.channels() == 3) {
+        std::cout << "CVT uptop" << std::endl;
+        cv::cuda::cvtColor(up_top_img, up_top_img, cv::COLOR_BGR2GRAY);
+    }
 
-            if (!down_top_img.empty() && down_top_img.channels() == 3) {
-                std::cout << "CVT downtop" << std::endl;
-                cv::cuda::cvtColor(down_top_img, down_top_img, cv::COLOR_BGR2GRAY);
-            }
+    if (!down_top_img.empty() && down_top_img.channels() == 3) {
+        std::cout << "CVT downtop" << std::endl;
+        cv::cuda::cvtColor(down_top_img, down_top_img, cv::COLOR_BGR2GRAY);
+    }
 
-            if (!up_side_img.empty() && up_side_img.channels() == 3) {
-                std::cout << "CVT upside" << std::endl;
-                cv::cuda::cvtColor(up_side_img, up_side_img, cv::COLOR_BGR2GRAY);
-            }
+    if (!up_side_img.empty() && up_side_img.channels() == 3) {
+        std::cout << "CVT upside" << std::endl;
+        cv::cuda::cvtColor(up_side_img, up_side_img, cv::COLOR_BGR2GRAY);
+    }
 
-            if (!down_side_img.empty() && down_side_img.channels() == 3) {
-                std::cout << "CVT downside" << std::endl;
-                cv::cuda::cvtColor(down_side_img, down_side_img, cv::COLOR_BGR2GRAY);
-            }
+    if (!down_side_img.empty() && down_side_img.channels() == 3) {
+        std::cout << "CVT downside" << std::endl;
+        cv::cuda::cvtColor(down_side_img, down_side_img, cv::COLOR_BGR2GRAY);
+    }
 
-        ROS_INFO("CVT Color %fms", t_r.toc());
-        
-        //If has predict;
-        if (is_blank_init) {
-            prev_up_top_pts.push_back(cv::Point(10, 10));
-            prev_up_side_pts.push_back(cv::Point(10, 10));
-            prev_down_top_pts.push_back(cv::Point(10, 10));
-        }
+    //If has predict;
+    if (is_blank_init) {
+        prev_up_top_pts.push_back(cv::Point(10, 10));
+        prev_up_side_pts.push_back(cv::Point(10, 10));
+        prev_down_top_pts.push_back(cv::Point(10, 10));
+    }
 
-        if (enable_up_top) {
-            // ROS_INFO("Tracking top");
-            cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_img, prev_up_top_pts, ids_up_top, track_up_top_cnt, false);
-        }
-        if (enable_up_side) {
-            cur_up_side_pts = opticalflow_track(up_side_img, prev_up_side_img, prev_up_side_pts, ids_up_side, track_up_side_cnt, false);
-        }
+    if (enable_up_top) {
+        // ROS_INFO("Tracking top");
+        cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_img, prev_up_top_pts, ids_up_top, track_up_top_cnt, false);
+    }
+    if (enable_up_side) {
+        cur_up_side_pts = opticalflow_track(up_side_img, prev_up_side_img, prev_up_side_pts, ids_up_side, track_up_side_cnt, false);
+    }
 
-        if (enable_down_top) {
-            cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_img, prev_down_top_pts, ids_down_top, track_down_top_cnt, false);
-        }
-        
-        ROS_INFO("FT %fms", t_r.toc());
+    if (enable_down_top) {
+        cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_img, prev_down_top_pts, ids_down_top, track_down_top_cnt, false);
+    }
+    
+    ROS_INFO("FT %fms", t_r.toc());
 
-        setMaskFisheye();
+    setMaskFisheye();
 
-        ROS_INFO("SetMaskFisheye %fms", t_r.toc());
-        
-        TicToc t_d;
-        if (enable_up_top) {
-            // ROS_INFO("Detecting top");
-            detectPoints(up_top_img, mask_up_top, n_pts_up_top, cur_up_top_pts, TOP_PTS_CNT);
-        }
-        if (enable_down_top) {
-            detectPoints(down_top_img, mask_down_top, n_pts_down_top, cur_down_top_pts, TOP_PTS_CNT);
-        }
+    ROS_INFO("SetMaskFisheye %fms", t_r.toc());
+    
+    TicToc t_d;
+    if (enable_up_top) {
+        // ROS_INFO("Detecting top");
+        detectPoints(up_top_img, mask_up_top, n_pts_up_top, cur_up_top_pts, TOP_PTS_CNT);
+    }
+    if (enable_down_top) {
+        detectPoints(down_top_img, mask_down_top, n_pts_down_top, cur_down_top_pts, TOP_PTS_CNT);
+    }
 
-        if (enable_up_side) {
-            detectPoints(up_side_img, mask_up_side, n_pts_up_side, cur_up_side_pts, SIDE_PTS_CNT);
-        }
+    if (enable_up_side) {
+        detectPoints(up_side_img, mask_up_side, n_pts_up_side, cur_up_side_pts, SIDE_PTS_CNT);
+    }
 
-        ROS_INFO("DetectPoints %fms", t_d.toc());
+    ROS_INFO("DetectPoints %fms", t_d.toc());
 
-        addPointsFisheye();
+    addPointsFisheye();
 
-        if (enable_down_side) {
-            ids_down_side = ids_up_side;
-            std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
-            cur_down_side_pts = opticalflow_track(down_side_img, up_side_img, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
-            // ROS_INFO("Down side try to track %ld pts; gives %ld:%ld", cur_up_side_pts.size(), cur_down_side_pts.size(), ids_down_side.size());
-        }
+    if (enable_down_side) {
+        ids_down_side = ids_up_side;
+        std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
+        cur_down_side_pts = opticalflow_track(down_side_img, up_side_img, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
+        // ROS_INFO("Down side try to track %ld pts; gives %ld:%ld", cur_up_side_pts.size(), cur_down_side_pts.size(), ids_down_side.size());
     }
 
     if (is_blank_init) {

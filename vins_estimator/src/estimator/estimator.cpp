@@ -101,12 +101,6 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
         return;
     }
 
-    double dt = featureTrackerTime.toc();
-    sum_time += dt;
-    img_track_count ++;
-
-    printf("featureTracker time: AVG %f NOW %f inputImageCnt %d Bufsize %ld imgs buf Size %ld\n", 
-        sum_time/img_track_count, dt, inputImageCnt, featureBuf.size(), fisheye_imgs_upBuf_cuda.size());
     if(inputImageCnt % 2 == 0)
     {
         mBuf.lock();
@@ -118,6 +112,14 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
         }
         mBuf.unlock();
     }
+
+    double dt = featureTrackerTime.toc();
+    sum_time += dt;
+    img_track_count ++;
+
+    printf("featureTracker time: AVG %f NOW %f inputImageCnt %d Bufsize %ld imgs buf Size %ld\n", 
+        sum_time/img_track_count, dt, inputImageCnt, featureBuf.size(), fisheye_imgs_upBuf_cuda.size());
+   
 }
 
 double base = 0;

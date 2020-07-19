@@ -128,6 +128,10 @@ class FisheyeFlattenHandler
                 fisheye_up_imgs_cuda_gray.clear();
                 fisheye_down_imgs_cuda_gray.clear();
 
+
+                fisheye_down_imgs_cuda = fisheys_undists[1].undist_all_cuda(img2, is_color, mask_down);
+
+                TicToc t_c;
                 for (auto & img: fisheye_up_imgs_cuda) {
                     cv::cuda::GpuMat gray;
                     if(!img.empty()) {
@@ -136,7 +140,6 @@ class FisheyeFlattenHandler
                     fisheye_up_imgs_cuda_gray.push_back(gray);
                 }
 
-                fisheye_down_imgs_cuda = fisheys_undists[1].undist_all_cuda(img2, is_color, mask_down);
                 for (auto & img: fisheye_down_imgs_cuda) {
                     cv::cuda::GpuMat gray;
                     if(!img.empty()) {
@@ -146,13 +149,15 @@ class FisheyeFlattenHandler
                     fisheye_down_imgs_cuda_gray.push_back(gray);
                 }
 
+                ROS_INFO("CvtColor %fms", t_c.toc());
+
             } else {
                 fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
                     fisheye_up_imgs, fisheye_down_imgs, false, 
                     enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
             }
 
-            ROS_WARN("Flatten cost %fms", t_f.toc() , "Flatten AVG %fms", flatten_time_sum/count);
+            ROS_INFO("Flatten cost %fms Flatten AVG %fms", t_f.toc(), flatten_time_sum/count);
 
             flatten_time_sum += t_f.toc();
         }
@@ -223,9 +228,9 @@ class FisheyeFlattenHandler
             else
             {
                 if (FISHEYE) {
-                    ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8);
+                    ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::BGR8);
                 } else {
-                    ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);        
+                    ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::MONO8);        
                 }
             }
             return ptr;
@@ -309,15 +314,17 @@ namespace vins_nodelet_pkg
                     if (img1_msg->header.stamp.toSec() - t_last > 0.11) {
                         ROS_WARN("Duration between two images is %fms", img1_msg->header.stamp.toSec() - t_last);
                     }
+                    TicToc t0;
                     t_last = img1_msg->header.stamp.toSec();
                     estimator.inputFisheyeImage(img1_msg->header.stamp.toSec(), 
                         fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray);
+                    ROS_INFO("Input Image: %fms, %fms", tic_input.toc(), t0.toc());
+
                 } else {
                     estimator.inputImage(img1_msg->header.stamp.toSec(), cv::Mat(), cv::Mat(), 
                         fisheye_handler->fisheye_up_imgs, fisheye_handler->fisheye_down_imgs);
                 }
 
-                ROS_INFO("Input Image: %fms", tic_input.toc());
 
 
             }
