@@ -302,7 +302,6 @@ namespace vins_nodelet_pkg
             double t_last = 0;
 
             void fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg) {
-                std::cout << "Start fisheye cb" << std::endl;
                 TicToc tic_input;
                 fisheye_handler->img_callback(img1_msg, img2_msg);
 
@@ -320,7 +319,6 @@ namespace vins_nodelet_pkg
 
                 ROS_INFO("Input Image: %fms", tic_input.toc());
 
-                std::cout << "End fisheye cb" << std::endl;
 
             }
 
