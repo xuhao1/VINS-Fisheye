@@ -253,6 +253,7 @@ public:
         maps.push_back(genOneUndistMap(p_cam, t, imgWidth, imgWidth, f_center));
 
         if (cam_id == 1) {
+            std::cout << "Is camera 1 will invert T" << std::endl;
             t = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX());
         };
 

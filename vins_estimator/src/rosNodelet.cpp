@@ -242,6 +242,8 @@ namespace vins_nodelet_pkg
                 std::cout << "config file is " << config_file << '\n';
                 readParameters(config_file);
                 estimator.setParameter();
+
+                ROS_INFO("Will %d GPU", USE_GPU);
                 
                 if (ENABLE_DEPTH) {
                     cam_manager = new DepthCamManager(n, &(estimator.featureTracker.fisheys_undists[0]));
