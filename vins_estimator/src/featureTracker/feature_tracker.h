@@ -52,16 +52,28 @@ class Estimator;
 class FisheyeUndist;
 map<int, cv::Point2f> pts_map(vector<int> ids, vector<cv::Point2f> cur_pts);
 
-class FeatureTracker
-{
+
+template<CvMat>
+class IFeatureTracker {
 public:
+    IFeatureTracker() {}
     Estimator * estimator = nullptr;
-    FeatureTracker();
-    FeatureFrame trackImage(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
+    virtual void setup_feature_frame(FeatureFrame & ff, 
+        vector<int> ids, vector<cv::Point2f> cur_pts, vector<cv::Point3f> cur_un_pts, vector<cv::Point3f> cur_pts_vel, int camera_id);
+    FeatureFrame setup_feature_frame();
 
-    FeatureFrame trackImage_fisheye(double _cur_time, const std::vector<cv::Mat> & fisheye_imgs_up, const std::vector<cv::Mat> & fisheye_imgs_down);
+    virtual FeatureFrame trackImage(double _cur_time, const CvMat &_img, const CvMat &_img1) = 0;
+    virtual FeatureFrame trackImage_fisheye(double _cur_time, const std::vector<cv::Mat> & fisheye_imgs_up, const std::vector<cv::Mat> & fisheye_imgs_down) = 0;
+}
 
-#ifdef USE_CUDA
+template<CvMat>
+class FisheyeFeatureTracker: public IFeatureTracker {
+
+};
+
+class FisheyeFeatureTrackerCuda: public IFeatureTracker<cv::cuda::GpuMat> {
+
+public:
     FeatureFrame trackImage_fisheye(double _cur_time, 
         const std::vector<cv::cuda::GpuMat> & fisheye_imgs_up, 
         const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down, bool is_blank_init = false);
@@ -70,7 +82,14 @@ public:
                         cv::cuda::GpuMat & prev_img, vector<cv::Point2f> & prev_pts, 
                         vector<int> & ids, vector<int> & track_cnt,
                         bool is_lr_track, vector<cv::Point2f> prediction_points = vector<cv::Point2f>());
-#endif
+
+};
+
+class FisheyeFeatureTrackerOMP:: public IFeatureTracker<cv::Mat> {
+public:
+    FeatureFrame trackImage(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
+
+    FeatureFrame trackImage_fisheye(double _cur_time, const std::vector<cv::Mat> & fisheye_imgs_up, const std::vector<cv::Mat> & fisheye_imgs_down);
     
     vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr, 
                         vector<cv::Mat> * prev_pyr, vector<cv::Point2f> & prev_pts, 
@@ -79,7 +98,21 @@ public:
     vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_pyr, 
                         cv::Mat & prev_img, vector<cv::Mat> * prev_pyr, vector<cv::Point2f> & prev_pts, 
                         vector<int> & ids, vector<int> & track_cnt, vector<cv::Point2f> prediction_points = vector<cv::Point2f>()) const;
+}
 
+class PinholeStereoTrackerCPU:: public IFeatureTracker<cv::Mat> {
+
+}
+
+
+class PinholeStereoTrackerCuda:: public IFeatureTracker<cv::Mat> {
+
+}
+
+class FeatureTracker
+{
+public:
+    FeatureTracker();
     void setMask();
     void setMaskFisheye();
     cv::Mat setMaskFisheye(cv::Size shape, vector<cv::Point2f> & cur_pts, vector<int> & track_cnt, vector<int> & ids);
@@ -109,8 +142,6 @@ public:
                     vector<cv::Point2f> &curRightPts,
                     map<int, cv::Point2f> &prevLeftPtsMap);
     
-    void setup_feature_frame(FeatureFrame & ff, vector<int> ids, vector<cv::Point2f> cur_pts, vector<cv::Point3f> cur_un_pts, vector<cv::Point3f> cur_pts_vel, int camera_id);
-    FeatureFrame setup_feature_frame();
     
 #ifdef USE_CUDA
     void drawTrackFisheye(const cv::Mat & img_up, const cv::Mat & img_down, 
@@ -144,7 +175,7 @@ public:
     void setFeatureStatus(int feature_id, int status) {
         this->pts_status[feature_id] = status;
         if (status < 0) {
-            removed_pts.insert(feature_id);
+
         }
     }
 
@@ -185,6 +216,7 @@ public:
     vector<cv::Point3f> prev_up_top_un_pts,  prev_up_side_un_pts, prev_down_top_un_pts, prev_down_side_un_pts;
     vector<cv::Point2f> cur_down_top_pts, cur_down_side_pts;
 
+
     vector<cv::Point3f> up_top_vel, up_side_vel, down_top_vel, down_side_vel;
     vector<cv::Point3f> cur_up_top_un_pts, cur_up_side_un_pts, cur_down_top_un_pts, cur_down_side_un_pts;
 
@@ -221,9 +253,7 @@ public:
     double prev_time;
     bool stereo_cam;
     int n_id;
-    bool hasPrediction;
 
-#ifdef WITH_VWORKS
     cv::cuda::GpuMat up_side_img_fix;
     cv::cuda::GpuMat down_side_img_fix;
     cv::cuda::GpuMat up_top_img_fix;
