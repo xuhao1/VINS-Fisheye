@@ -40,9 +40,7 @@
 
 class DepthCamManager;
 
-typedef std::pair<Eigen::Matrix3d, Eigen::Vector3d> EigenPose;
-typedef std::vector<cv::Mat> CvImages;
-typedef std::vector<cv::cuda::GpuMat> CvCudaImages;
+
 class Estimator
 {
   public:

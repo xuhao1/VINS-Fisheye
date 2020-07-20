@@ -67,9 +67,15 @@ class FisheyeFlattenHandler
             return fisheys_undists[0].raw_width;
         }
 
-        std::vector<cv::cuda::GpuMat> fisheye_up_imgs_cuda, fisheye_down_imgs_cuda;
-        std::vector<cv::cuda::GpuMat> fisheye_up_imgs_cuda_gray, fisheye_down_imgs_cuda_gray;
-        std::vector<cv::Mat> fisheye_up_imgs, fisheye_down_imgs;
+
+        std::queue<CvCudaImages> fisheye_cuda_buf_up, fisheye_cuda_buf_down;
+        std::queue<double> fisheye_cuda_buf_t;
+        //Only gray image will be saved in buf now
+
+        CvCudaImages fisheye_up_imgs_cuda, fisheye_down_imgs_cuda;
+        CvCudaImages fisheye_up_imgs_cuda_gray, fisheye_down_imgs_cuda_gray;
+        
+        CvImages fisheye_up_imgs, fisheye_down_imgs;
         
         FisheyeFlattenHandler(ros::NodeHandle & n): mask_up(5, 0), mask_down(5, 0) 
         {
@@ -109,10 +115,10 @@ class FisheyeFlattenHandler
             auto img1 = getImageFromMsg(img1_msg);
             auto img2 = getImageFromMsg(img2_msg);
 
-            img_callback(img1->image, img2->image);
+            img_callback(img1_msg->header.stamp.toSec(), img1->image, img2->image);
         }
 
-        void img_callback(const cv::Mat & img1, const cv::Mat img2) {
+        void img_callback(double t, const cv::Mat & img1, const cv::Mat img2) {
 
             static double flatten_time_sum = 0;
             static double count = 0;
@@ -149,6 +155,10 @@ class FisheyeFlattenHandler
                     fisheye_down_imgs_cuda_gray.push_back(gray);
                 }
 
+                fisheye_cuda_buf_t.push(t);
+                fisheye_cuda_buf_up.push(fisheye_up_imgs_cuda_gray);
+                fisheye_cuda_buf_down.push(fisheye_down_imgs_cuda_gray);
+
                 ROS_INFO("CvtColor %fms", t_c.toc());
 
             } else {
@@ -162,6 +172,25 @@ class FisheyeFlattenHandler
             flatten_time_sum += t_f.toc();
         }
 
+        auto has_image_in_buffer() {
+            return fisheye_cuda_buf_down.size() > 0;
+        }
+
+        std::tuple<double, CvCudaImages, CvCudaImages> pop_from_buffer() {
+            if (fisheye_cuda_buf_t.size() > 0) {
+                auto & t = fisheye_cuda_buf_t.front();
+                auto & u = fisheye_cuda_buf_up.front();
+                auto & d = fisheye_cuda_buf_down.front();
+
+                fisheye_cuda_buf_t.pop();
+                fisheye_cuda_buf_up.pop();
+                fisheye_cuda_buf_down.pop();
+                
+                return std::make_tuple(t, u, d);
+            } else {
+                return std::make_tuple(0.0, CvCudaImages(0), CvCudaImages(0));
+            }
+        }
 
         void pack_and_send() {
             TicToc t_p;
@@ -248,6 +277,8 @@ namespace vins_nodelet_pkg
             message_filters::Subscriber<sensor_msgs::Image> * image_sub_r;
             FisheyeFlattenHandler * fisheye_handler;
 
+            ros::Timer timer;
+
             DepthCamManager * cam_manager = nullptr;
             virtual void onInit()
             {
@@ -283,7 +314,7 @@ namespace vins_nodelet_pkg
                 //We use blank images to initialize cuda before every thing
                 TicToc blank;
                 cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
-                fisheye_handler->img_callback(mat, mat);
+                fisheye_handler->img_callback(0, mat, mat);
                 estimator.inputFisheyeImage(0, 
                         fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray);
                 std::cout<< "Initialize with blank cost" << blank.toc() << std::endl;
@@ -295,6 +326,8 @@ namespace vins_nodelet_pkg
                 image_sub_l = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE0_TOPIC, 1000);
                 image_sub_r = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE1_TOPIC, 1000);
                 sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> (*image_sub_l, *image_sub_r, 1000);
+
+                timer = n.createTimer(ros::Duration(0.001), boost::bind(&VinsNodeletClass::processFlattened, this, _1 ));
                 
                 if (FISHEYE) {
                     sync->registerCallback(boost::bind(&VinsNodeletClass::fisheye_imgs_callback, this, _1, _2));
@@ -306,27 +339,29 @@ namespace vins_nodelet_pkg
 
             double t_last = 0;
 
+            void processFlattened(const ros::TimerEvent & e) {
+                TicToc t0;
+                if (fisheye_handler->has_image_in_buffer()) {
+                    auto ret = fisheye_handler->pop_from_buffer();
+                    estimator.inputFisheyeImage(std::get<double>(ret), std::get<1>(ret), std::get<2>(ret));
+                    ROS_INFO("Input Image: %fms", t0.toc());
+                }
+            }
+
             void fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg) {
                 TicToc tic_input;
                 fisheye_handler->img_callback(img1_msg, img2_msg);
 
-                if (USE_GPU) {
-                    if (img1_msg->header.stamp.toSec() - t_last > 0.11) {
-                        ROS_WARN("Duration between two images is %fms", img1_msg->header.stamp.toSec() - t_last);
-                    }
-                    TicToc t0;
-                    t_last = img1_msg->header.stamp.toSec();
-                    estimator.inputFisheyeImage(img1_msg->header.stamp.toSec(), 
-                        fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray);
-                    ROS_INFO("Input Image: %fms, %fms", tic_input.toc(), t0.toc());
+                if (img1_msg->header.stamp.toSec() - t_last > 0.11) {
+                    ROS_WARN("Duration between two images is %fms", img1_msg->header.stamp.toSec() - t_last);
+                }
+                t_last = img1_msg->header.stamp.toSec();
 
+                if (USE_GPU) {
                 } else {
                     estimator.inputImage(img1_msg->header.stamp.toSec(), cv::Mat(), cv::Mat(), 
                         fisheye_handler->fisheye_up_imgs, fisheye_handler->fisheye_down_imgs);
                 }
-
-
-
             }
 
             void img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
