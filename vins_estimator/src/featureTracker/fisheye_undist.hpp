@@ -63,7 +63,7 @@ public:
 
         cv::cuda::GpuMat img_cuda(image);
         cv::cuda::GpuMat output;
-        cv::cuda::remap(img_cuda, output, undistMapsGPUX[_id], undistMapsGPUY[_id], cv::INTER_LINEAR);
+        cv::cuda::remap(img_cuda, output, undistMapsGPUX[_id], undistMapsGPUY[_id], cv::INTER_NEAREST);
         return output;
 #endif
     }
@@ -90,7 +90,7 @@ public:
             if (!has_mask || (has_mask && mask[i]) ) {
                 cv::cuda::GpuMat output;
                 TicToc remap;
-                cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], cv::INTER_LINEAR);
+                cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], cv::INTER_NEAREST);
                 std::cout << "Remap cost " << remap.toc() << std::endl;
                 TicToc down;
                 output.download(tmp);
@@ -118,7 +118,7 @@ public:
         for (unsigned int i = 0; i < undistMaps.size(); i++) {
             cv::cuda::GpuMat output;
             if (!has_mask || (has_mask && mask[i]) ) {
-                cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], cv::INTER_LINEAR);
+                cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], cv::INTER_NEAREST);
             }
             ret.push_back(output);
         }

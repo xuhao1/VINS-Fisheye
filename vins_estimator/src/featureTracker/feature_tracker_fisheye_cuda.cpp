@@ -50,25 +50,19 @@ std::vector<cv::Mat> convertCPUMat(const std::vector<cv::cuda::GpuMat> & arr) {
 }
 
 
-void FeatureTracker::detectPoints(const cv::cuda::GpuMat & img, const cv::Mat & mask, 
-    vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts) {
+void FeatureTracker::detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point2f> & n_pts, 
+        vector<cv::Point2f> & cur_pts, int require_pts) {
     int lack_up_top_pts = require_pts - static_cast<int>(cur_pts.size());
 
-    //Add Points Top
     TicToc tic;
-    ROS_INFO("Lack %d pts; Require %d will detect %d", lack_up_top_pts, require_pts, lack_up_top_pts > require_pts/4);
+    
     if (lack_up_top_pts > require_pts/4) {
-        if(mask.empty())
-            cout << "mask is empty " << endl;
-        if (mask.type() != CV_8UC1)
-            cout << "mask type wrong " << endl;
-        
+        ROS_INFO("Lack %d pts; Require %d will detect %d", lack_up_top_pts, require_pts, lack_up_top_pts > require_pts/4);
         //Detect top img
         cv::Ptr<cv::cuda::CornersDetector> detector = cv::cuda::createGoodFeaturesToTrackDetector(
             img.type(), lack_up_top_pts, 0.01, MIN_DIST);
         cv::cuda::GpuMat d_prevPts;
-        cv::cuda::GpuMat gpu_mask(mask);
-        detector->detect(img, d_prevPts, gpu_mask);
+        detector->detect(img, d_prevPts);
         // std::cout << "d_prevPts size: "<< d_prevPts.size()<<std::endl;
         if(!d_prevPts.empty()) {
             n_pts = cv::Mat_<cv::Point2f>(cv::Mat(d_prevPts));
@@ -257,14 +251,14 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     TicToc t_d;
     if (enable_up_top) {
         // ROS_INFO("Detecting top");
-        detectPoints(up_top_img, mask_up_top, n_pts_up_top, cur_up_top_pts, TOP_PTS_CNT);
+        detectPoints(up_top_img, n_pts_up_top, cur_up_top_pts, TOP_PTS_CNT);
     }
     if (enable_down_top) {
-        detectPoints(down_top_img, mask_down_top, n_pts_down_top, cur_down_top_pts, TOP_PTS_CNT);
+        detectPoints(down_top_img, n_pts_down_top, cur_down_top_pts, TOP_PTS_CNT);
     }
 
     if (enable_up_side) {
-        detectPoints(up_side_img, mask_up_side, n_pts_up_side, cur_up_side_pts, SIDE_PTS_CNT);
+        detectPoints(up_side_img, n_pts_up_side, cur_up_side_pts, SIDE_PTS_CNT);
     }
 
     ROS_INFO("DetectPoints %fms", t_d.toc());

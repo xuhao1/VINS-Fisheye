@@ -159,6 +159,8 @@ class FisheyeFlattenHandler
                     fisheye_cuda_buf_t.push(t);
                     fisheye_cuda_buf_up.push(fisheye_up_imgs_cuda_gray);
                     fisheye_cuda_buf_down.push(fisheye_down_imgs_cuda_gray);
+                } else {
+                    return;
                 }
 
                 ROS_INFO("CvtColor %fms", t_c.toc());
@@ -180,9 +182,9 @@ class FisheyeFlattenHandler
 
         std::tuple<double, CvCudaImages, CvCudaImages> pop_from_buffer() {
             if (fisheye_cuda_buf_t.size() > 0) {
-                auto & t = fisheye_cuda_buf_t.front();
-                auto & u = fisheye_cuda_buf_up.front();
-                auto & d = fisheye_cuda_buf_down.front();
+                auto t = fisheye_cuda_buf_t.front();
+                auto u = fisheye_cuda_buf_up.front();
+                auto d = fisheye_cuda_buf_down.front();
 
                 fisheye_cuda_buf_t.pop();
                 fisheye_cuda_buf_up.pop();

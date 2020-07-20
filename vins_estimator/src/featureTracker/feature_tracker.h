@@ -136,7 +136,9 @@ public:
 
     static double distance(cv::Point2f pt1, cv::Point2f pt2);
 
-    void detectPoints(const cv::cuda::GpuMat & img, const cv::Mat & mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts);
+    void detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point2f> & n_pts, 
+        vector<cv::Point2f> & cur_pts, int require_pts);
+
     void detectPoints(const cv::Mat & img, const cv::Mat & mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts);
 
     void setFeatureStatus(int feature_id, int status) {

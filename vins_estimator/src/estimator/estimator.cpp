@@ -96,7 +96,7 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
     FeatureFrame featureFrame;
     TicToc featureTrackerTime;
 
-    featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
+    featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda, is_blank_init);
     if (is_blank_init) {
         return;
     }
