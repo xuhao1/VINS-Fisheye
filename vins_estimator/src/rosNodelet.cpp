@@ -118,7 +118,7 @@ class FisheyeFlattenHandler
             img_callback(img1_msg->header.stamp.toSec(), img1->image, img2->image);
         }
 
-        void img_callback(double t, const cv::Mat & img1, const cv::Mat img2) {
+        void img_callback(double t, const cv::Mat & img1, const cv::Mat img2, bool is_blank_init = false) {
 
             static double flatten_time_sum = 0;
             static double count = 0;
@@ -155,9 +155,11 @@ class FisheyeFlattenHandler
                     fisheye_down_imgs_cuda_gray.push_back(gray);
                 }
 
-                fisheye_cuda_buf_t.push(t);
-                fisheye_cuda_buf_up.push(fisheye_up_imgs_cuda_gray);
-                fisheye_cuda_buf_down.push(fisheye_down_imgs_cuda_gray);
+                if (!is_blank_init) {
+                    fisheye_cuda_buf_t.push(t);
+                    fisheye_cuda_buf_up.push(fisheye_up_imgs_cuda_gray);
+                    fisheye_cuda_buf_down.push(fisheye_down_imgs_cuda_gray);
+                }
 
                 ROS_INFO("CvtColor %fms", t_c.toc());
 
@@ -314,7 +316,7 @@ namespace vins_nodelet_pkg
                 //We use blank images to initialize cuda before every thing
                 TicToc blank;
                 cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
-                fisheye_handler->img_callback(0, mat, mat);
+                fisheye_handler->img_callback(0, mat, mat, true);
                 estimator.inputFisheyeImage(0, 
                         fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray);
                 std::cout<< "Initialize with blank cost" << blank.toc() << std::endl;
