@@ -24,6 +24,7 @@ DepthCamManager::DepthCamManager(ros::NodeHandle & _nh, FisheyeUndist * _fisheye
     pub_depthcam_poses.push_back(nh.advertise<geometry_msgs::PoseStamped>("pose_rear", 1));
 
 
+    pcl2depth_map.resize(4);
 
     pub_camera_up = nh.advertise<sensor_msgs::Image>("/front_stereo/left/image_raw", 1);
     pub_camera_down = nh.advertise<sensor_msgs::Image>("/front_stereo/right/image_raw", 1);
@@ -258,7 +259,10 @@ void DepthCamManager::update_depth_image(int direction, cv::cuda::GpuMat _up_fro
 
     cv::Mat depthmap;
     if(pub_depth_map) {
-        depthmap = generate_depthmap(pointcloud_up, ric1.transpose()*ric_depth);
+        if (pcl2depth_map[direction].empty()) {
+            pcl2depth_map[direction] = build_pcl2depth_map(pointcloud_up, ric1.transpose()*ric_depth);
+        }
+        depthmap = generate_depthmap(pointcloud_up, pcl2depth_map[direction]);
     }
 
     if(ENABLE_PERF_OUTPUT) {
@@ -338,7 +342,10 @@ void DepthCamManager::update_depth_image(int direction, cv::Mat _up_front, cv::M
 
     cv::Mat depthmap;
     if(pub_depth_map) {
-        depthmap = generate_depthmap(pointcloud_up, ric1.transpose()*ric_depth);
+        if (pcl2depth_map[direction].empty()) {
+            pcl2depth_map[direction] = build_pcl2depth_map(pointcloud_up, ric1.transpose()*ric_depth);
+        }
+        depthmap = generate_depthmap(pointcloud_up, pcl2depth_map[direction]);
     }
 
     if(ENABLE_PERF_OUTPUT) {
@@ -410,7 +417,7 @@ void DepthCamManager::pub_depths_from_buf(ros::Time stamp, Eigen::Matrix3d ric1,
     }
 }
 
-void DepthCamManager::add_pts_point_cloud(cv::Mat pts3d, Eigen::Matrix3d R, Eigen::Vector3d P, ros::Time stamp,
+void DepthCamManager::add_pts_point_cloud(const cv::Mat & pts3d, Eigen::Matrix3d R, Eigen::Vector3d P, ros::Time stamp,
     sensor_msgs::PointCloud & pcl, int step, cv::Mat color) {
     bool rgb_color = color.channels() == 3;
     for(int v = 0; v < pts3d.rows; v += step){
@@ -452,7 +459,7 @@ void DepthCamManager::add_pts_point_cloud(cv::Mat pts3d, Eigen::Matrix3d R, Eige
     }
 }
 
-void DepthCamManager::publish_world_point_cloud(cv::Mat pts3d, Eigen::Matrix3d R, Eigen::Vector3d P, ros::Time stamp,
+void DepthCamManager::publish_world_point_cloud(const cv::Mat & pts3d, Eigen::Matrix3d R, Eigen::Vector3d P, ros::Time stamp,
     int dir, int step, cv::Mat color) {
     // std::cout<< "Pts3d Size " << pts3d.size() << std::endl;
     // std::cout<< "Color Size " << color.size() << std::endl;
@@ -503,32 +510,32 @@ void DepthCamManager::publish_world_point_cloud(cv::Mat pts3d, Eigen::Matrix3d R
 }
 
 
-cv::Mat DepthCamManager::generate_depthmap(cv::Mat pts3d, Eigen::Matrix3d rel_ric_depth) const {
-    cv::Mat depthmap(depth_cam->imageHeight(), depth_cam->imageWidth(), CV_32F);
-    depthmap.setTo(0);
+cv::Mat DepthCamManager::build_pcl2depth_map(const cv::Mat & pts3d, Eigen::Matrix3d rel_ric_depth) const {
+    cv::Mat pcl2depth_map(depth_cam->imageHeight(), depth_cam->imageWidth(), CV_32FC2);
+    pcl2depth_map.setTo(0);
     Eigen::Matrix3d cam_mat;
     for(int v = 0; v < pts3d.rows; v += 1) {
         for(int u = 0; u < pts3d.cols; u += 1)  
         {
             cv::Vec3f vec = pts3d.at<cv::Vec3f>(v, u);
-            double z = vec[2];
-
             Eigen::Vector3d vec3d(vec[0], vec[1], vec[2]);
             vec3d = rel_ric_depth.transpose()*vec3d;
-            Eigen::Vector2d p_sphere;
+            Eigen::Vector2d p_sphere(0, 0);
             depth_cam->spaceToPlane(vec3d, p_sphere);
             //Than here is the undist points
             int px = p_sphere.x();
             int py = p_sphere.y();
-
-            // printf("Py %d Px %d\n", py, px);
             if (py < depth_cam->imageHeight() && px < depth_cam->imageWidth() && px > 0 && py > 0) {
-                if (z > min_z) {
-                    depthmap.at<float>(py, px) = z;
-                }
+                pcl2depth_map.at<cv::Vec2f>(py, px) = cv::Vec2f(v, u);
             }
         }
     }
 
+    return pcl2depth_map;
+}
+
+cv::Mat DepthCamManager::generate_depthmap(const cv::Mat & pts3d, const cv::Mat & pcl2depth_map) const {
+    cv::Mat depthmap;
+    cv::remap(pts3d, depthmap, pcl2depth_map, cv::Mat(), cv::INTER_LINEAR);
     return depthmap;
 }

@@ -2,6 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
 #include "../utility/opencv_cuda.h"
+#include "../utility/tic_toc.h"
 #include <opencv2/core/eigen.hpp>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud.h>
@@ -108,21 +109,16 @@ public:
         int width = left.size().width;
         int height = left.size().height;
 
-        cv::Mat map3d, imgDisparity32F;
-        if (params.use_vworks) {
-            double min_val = params.min_disparity;
-            double max_val = 0;
-            // dispartitymap.convertTo(imgDisparity32F, CV_32F, (params.num_disp-params.min_disparity)/255.0);
-            // dispartitymap.convertTo(imgDisparity32F, CV_32F, (params.num_disp-params.min_disparity)/255.0);
-            dispartitymap.convertTo(imgDisparity32F, CV_32F, 1./16);
-            cv::threshold(imgDisparity32F, imgDisparity32F, min_val, 1000, cv::THRESH_TOZERO);
-        } else {
-            dispartitymap.convertTo(imgDisparity32F, CV_32F, 1./16);
-            cv::threshold(imgDisparity32F, imgDisparity32F, params.min_disparity, 1000, cv::THRESH_TOZERO);
-        }
+        cv::Mat imgDisparity32F;
+        TicToc tic1;
+        dispartitymap.convertTo(imgDisparity32F, CV_32F, 1./16);
+        cv::threshold(imgDisparity32F, imgDisparity32F, params.min_disparity, 1000, cv::THRESH_TOZERO);
+        ROS_INFO("Convert cost %fms", tic1.toc());
+
+        TicToc tic;
         cv::Mat XYZ = cv::Mat::zeros(imgDisparity32F.rows, imgDisparity32F.cols, CV_32FC3);   // Output point cloud
         cv::reprojectImageTo3D(imgDisparity32F, XYZ, Q);    // cv::project
-
+        ROS_INFO("Reproject to 3d cost %fms", tic.toc());
         return XYZ;
     }
 };

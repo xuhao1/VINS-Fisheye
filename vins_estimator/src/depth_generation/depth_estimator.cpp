@@ -55,7 +55,6 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
     //OutputArray Q,
     //  int flags=CALIB_ZERO_DISPARITY, double alpha=-1, 
     // Size newImageSize=Size(), Rect* validPixROI1=0, Rect* validPixROI2=0 )¶
-    TicToc tic;
     if (first_init) {
         cv::Mat _Q;
         cv::Size imgSize = left.size();
@@ -81,9 +80,14 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
 
 
     cv::cuda::GpuMat leftRectify, rightRectify;
+    TicToc remap;
     cv::cuda::remap(left, leftRectify, map11, map12, cv::INTER_LINEAR);
     cv::cuda::remap(right, rightRectify, map21, map22, cv::INTER_LINEAR);
+    if(ENABLE_PERF_OUTPUT) {
+        ROS_INFO("Depth rectify cost %fms", remap.toc());
+    }
 
+    TicToc tic;
     cv::cuda::GpuMat disparity(leftRectify.size(), CV_8U);
     if (!params.use_vworks) {
         cv::Mat disparity;

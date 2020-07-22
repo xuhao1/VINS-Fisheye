@@ -46,6 +46,7 @@ class DepthCamManager {
     std::vector<cv::Mat> depth_maps;
     std::vector<cv::Mat> pts_3ds;
     std::vector<cv::Mat> texture_imgs;
+    std::vector<cv::Mat> pcl2depth_map;
 
     int show_disparity = 0;
     int enable_extrinsic_calib_for_depth = 0;
@@ -80,14 +81,14 @@ public:
 
     DepthEstimator * create_depth_estimator(int direction, Eigen::Matrix3d r01, Eigen::Vector3d t01);
     
-    void publish_world_point_cloud(cv::Mat pts3d, Eigen::Matrix3d R, Eigen::Vector3d P, ros::Time stamp,
+    void publish_world_point_cloud(const cv::Mat &pts3d, Eigen::Matrix3d R, Eigen::Vector3d P, ros::Time stamp,
         int dir, int step = 3, cv::Mat color = cv::Mat());
     
-    void add_pts_point_cloud(cv::Mat pts3d, Eigen::Matrix3d R, Eigen::Vector3d P, ros::Time stamp,
+    void add_pts_point_cloud(const cv::Mat & pts3d, Eigen::Matrix3d R, Eigen::Vector3d P, ros::Time stamp,
         sensor_msgs::PointCloud & pcl, int step = 3, cv::Mat color = cv::Mat());
 
-    cv::Mat generate_depthmap(cv::Mat pts3d, Eigen::Matrix3d rel_ric_depth) const;
-
+    cv::Mat generate_depthmap(const cv::Mat & pts3d, const cv::Mat & pcl2depth_map) const;
+    cv::Mat build_pcl2depth_map(const cv::Mat & pts3d, Eigen::Matrix3d rel_ric_depth) const;
     template<typename cvMat>
     void update_depth_image(ros::Time stamp, cvMat _up_front, cvMat _down_front, 
         Eigen::Matrix3d ric1, Eigen::Vector3d tic1,
