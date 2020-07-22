@@ -53,6 +53,7 @@ class FisheyeFlattenHandler
 
     ros::Publisher flatten_pub;
     std::vector<bool> mask_up, mask_down;
+    ros::Time stamp;
 
     bool is_color = false;
 
@@ -114,7 +115,7 @@ class FisheyeFlattenHandler
         {
             auto img1 = getImageFromMsg(img1_msg);
             auto img2 = getImageFromMsg(img2_msg);
-
+            stamp = img1_msg->header.stamp;
             img_callback(img1_msg->header.stamp.toSec(), img1->image, img2->image);
         }
 
@@ -171,6 +172,8 @@ class FisheyeFlattenHandler
                     enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
             }
 
+            pack_and_send_cuda();
+
             ROS_INFO("Flatten cost %fms Flatten AVG %fms", t_f.toc(), flatten_time_sum/count);
 
             flatten_time_sum += t_f.toc();
@@ -196,38 +199,36 @@ class FisheyeFlattenHandler
             }
         }
 
-        void pack_and_send() {
+        void pack_and_send_cuda() {
             TicToc t_p;
             vins::FlattenImages images;
             static double pack_send_time = 0;
 
-            // images.header = img1_msg->header;
+            images.header.stamp = stamp;
             static int count = 0;
             count ++;
 
-            for (unsigned int i = 0; i < fisheye_up_imgs.size(); i++) {
+            for (unsigned int i = 0; i < fisheye_up_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
-                // outImg.header = img1_msg->header;
                 if (is_color) {
                     outImg.encoding = "bgr8";
                 } else {
                     outImg.encoding = "mono8";
                 }
 
-                outImg.image = fisheye_up_imgs[i];
+                fisheye_up_imgs_cuda[i].download(outImg.image);
                 images.up_cams.push_back(*outImg.toImageMsg());
             }
 
-            for (unsigned int i = 0; i < fisheye_down_imgs.size(); i++) {
+            for (unsigned int i = 0; i < fisheye_down_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
-                // outImg.header = img1_msg->header;
                 if (is_color) {
                     outImg.encoding = "bgr8";
                 } else {
                     outImg.encoding = "mono8";
                 }
 
-                outImg.image = fisheye_up_imgs[i];
+                fisheye_down_imgs_cuda[i].download(outImg.image);
                 images.down_cams.push_back(*outImg.toImageMsg());
             }
 
