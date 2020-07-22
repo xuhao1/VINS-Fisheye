@@ -67,7 +67,7 @@ public:
         const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down, bool is_blank_init = false);
 
     vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img, 
-                        cv::cuda::GpuMat & prev_img, vector<cv::Point2f> & prev_pts, 
+                        std::vector<cv::cuda::GpuMat> & prev_pyr, vector<cv::Point2f> & prev_pts, 
                         vector<int> & ids, vector<int> & track_cnt,
                         bool is_lr_track, vector<cv::Point2f> prediction_points = vector<cv::Point2f>());
 #endif
@@ -161,6 +161,8 @@ public:
 
     cv::cuda::GpuMat prev_gpu_img, cur_gpu_img;
     cv::cuda::GpuMat prev_up_top_img, prev_down_top_img, prev_up_side_img;
+
+    std::vector<cv::cuda::GpuMat> prev_up_top_pyr_cuda, prev_down_top_pyr_cuda, prev_up_side_pyr_cuda;
 
     cv::Mat prev_up_top_img_cpu, prev_down_top_img_cpu, prev_up_side_img_cpu;
     std::vector<cv::Mat> * prev_up_top_pyr = nullptr, * prev_down_top_pyr = nullptr, * prev_up_side_pyr = nullptr;

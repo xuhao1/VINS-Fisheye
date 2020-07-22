@@ -80,13 +80,38 @@ void FeatureTracker::detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point
 
  }
 
+
+std::vector<cv::cuda::GpuMat> buildImagePyramid(const cv::cuda::GpuMat& prevImg, int maxLevel_ = 3) {
+    std::vector<cv::cuda::GpuMat> prevPyr;
+    prevPyr.resize(maxLevel_ + 1);
+
+    int cn = prevImg.channels();
+
+    CV_Assert(cn == 1 || cn == 3 || cn == 4);
+
+    prevPyr[0] = prevImg;
+    for (int level = 1; level <= maxLevel_; ++level) {
+        cv::cuda::pyrDown(prevPyr[level - 1], prevPyr[level]);
+    }
+
+    return prevPyr;
+}
+
 vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img, 
-                        cv::cuda::GpuMat & prev_img, vector<cv::Point2f> & prev_pts, 
+                        std::vector<cv::cuda::GpuMat> & prev_pyr, vector<cv::Point2f> & prev_pts, 
                         vector<int> & ids, vector<int> & track_cnt,
                         bool is_lr_track, vector<cv::Point2f> prediction_points){
+
+
+    TicToc tic1;
+    auto cur_pyr = buildImagePyramid(cur_img);
+    
     if (prev_pts.size() == 0) {
+        if (!is_lr_track)
+            prev_pyr = cur_pyr;
         return vector<cv::Point2f>();
     }
+
     TicToc tic;
     vector<uchar> status;
 
@@ -104,6 +129,8 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
     reduceVector(ids, status);
     
     if (prev_pts.size() == 0) {
+        if (!is_lr_track)
+            prev_pyr = cur_pyr;
         return vector<cv::Point2f>();
     }
 
@@ -117,7 +144,8 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
     //Assume No Prediction Need to add later
     cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
         cv::Size(21, 21), 3, 30, false);
-    d_pyrLK_sparse->calc(prev_img, cur_img, prev_gpu_pts, cur_gpu_pts, gpu_status);
+
+    d_pyrLK_sparse->calc(prev_pyr, cur_pyr, prev_gpu_pts, cur_gpu_pts, gpu_status);
     
     // std::cout << "Prev gpu pts" << prev_gpu_pts.size() << std::endl;    
     // std::cout << "Cur gpu pts" << cur_gpu_pts.size() << std::endl;
@@ -131,7 +159,7 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
         cv::cuda::GpuMat reverse_gpu_pts = prev_gpu_pts;
         cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
         cv::Size(21, 21), 1, 30, true);
-        d_pyrLK_sparse->calc(cur_img, prev_img, cur_gpu_pts, reverse_gpu_pts, reverse_gpu_status);
+        d_pyrLK_sparse->calc(cur_pyr, prev_pyr, cur_gpu_pts, reverse_gpu_pts, reverse_gpu_status);
 
         vector<cv::Point2f> reverse_pts(reverse_gpu_pts.cols);
         reverse_gpu_pts.download(reverse_pts);
@@ -169,6 +197,8 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
 #endif
 
     //printf("track cnt %d\n", (int)ids.size());
+    if (!is_lr_track)
+        prev_pyr = cur_pyr;
 
     for (auto &n : track_cnt)
         n++;
@@ -231,14 +261,14 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
 
     if (enable_up_top) {
         // ROS_INFO("Tracking top");
-        cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_img, prev_up_top_pts, ids_up_top, track_up_top_cnt, false);
+        cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_pyr_cuda, prev_up_top_pts, ids_up_top, track_up_top_cnt, false);
     }
     if (enable_up_side) {
-        cur_up_side_pts = opticalflow_track(up_side_img, prev_up_side_img, prev_up_side_pts, ids_up_side, track_up_side_cnt, false);
+        cur_up_side_pts = opticalflow_track(up_side_img, prev_up_side_pyr_cuda, prev_up_side_pts, ids_up_side, track_up_side_cnt, false);
     }
 
     if (enable_down_top) {
-        cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_img, prev_down_top_pts, ids_down_top, track_down_top_cnt, false);
+        cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_pyr_cuda, prev_down_top_pts, ids_down_top, track_down_top_cnt, false);
     }
     
     ROS_INFO("FT %fms", t_r.toc());
@@ -270,7 +300,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     if (enable_down_side) {
         ids_down_side = ids_up_side;
         std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
-        cur_down_side_pts = opticalflow_track(down_side_img, up_side_img, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
+        cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr_cuda, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
         // ROS_INFO("Down side try to track %ld pts; gives %ld:%ld", cur_up_side_pts.size(), cur_down_side_pts.size(), ids_down_side.size());
     }
 
@@ -322,7 +352,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     // hasPrediction = false;
     auto ff = setup_feature_frame();
 
-    printf("FT Whole %fms; MainProcess %fms Detect AVG %fms concat %fms PTS %ld T\n", t_r.toc(), detected_time_sum/count, tcost_all, concat_cost, ff.size());
+    printf("FT Whole %fms; Detect AVG %fms concat %fms PTS %ld T\n", t_r.toc(), detected_time_sum/count, concat_cost, ff.size());
     return ff;
 }
 #endif
