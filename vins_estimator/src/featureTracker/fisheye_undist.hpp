@@ -12,7 +12,7 @@
 #include "../utility/tic_toc.h"
 
 #define DEG_TO_RAD (M_PI / 180.0)
-
+#define REMAP_FUNC cv::INTER_LINEAR
 class FisheyeUndist {
 
     camodocal::CameraPtr cam;
@@ -63,7 +63,7 @@ public:
 
         cv::cuda::GpuMat img_cuda(image);
         cv::cuda::GpuMat output;
-        cv::cuda::remap(img_cuda, output, undistMapsGPUX[_id], undistMapsGPUY[_id], cv::INTER_NEAREST);
+        cv::cuda::remap(img_cuda, output, undistMapsGPUX[_id], undistMapsGPUY[_id], REMAP_FUNC);
         return output;
 #endif
     }
@@ -90,7 +90,7 @@ public:
             if (!has_mask || (has_mask && mask[i]) ) {
                 cv::cuda::GpuMat output;
                 TicToc remap;
-                cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], cv::INTER_NEAREST);
+                cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], REMAP_FUNC);
                 std::cout << "Remap cost " << remap.toc() << std::endl;
                 TicToc down;
                 output.download(tmp);
@@ -118,7 +118,7 @@ public:
         for (unsigned int i = 0; i < undistMaps.size(); i++) {
             cv::cuda::GpuMat output;
             if (!has_mask || (has_mask && mask[i]) ) {
-                cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], cv::INTER_NEAREST);
+                cv::cuda::remap(img_cuda, output, undistMapsGPUX[i], undistMapsGPUY[i], REMAP_FUNC);
             }
             ret.push_back(output);
         }
@@ -137,7 +137,7 @@ public:
 #pragma omp parallel for num_threads(5)
             for (unsigned int i = 0; i < 5; i++) {
                 if (!disable[i]) {
-                    cv::remap(image, ret[i], undistMaps[i].first, undistMaps[i].second, cv::INTER_NEAREST);
+                    cv::remap(image, ret[i], undistMaps[i].first, undistMaps[i].second, REMAP_FUNC);
                 }
             }
             return ret;
@@ -161,7 +161,7 @@ public:
         bool enable_up_top = true, bool enable_up_rear = true,
         bool enable_down_top = true, bool enable_down_rear = true) {
 
-        auto method = cv::INTER_LINEAR;
+        auto method = REMAP_FUNC;
         lefts.resize(5);
         rights.resize(5);
         bool disable[10] = {0};
