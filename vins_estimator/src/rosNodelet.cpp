@@ -211,24 +211,28 @@ class FisheyeFlattenHandler
             for (unsigned int i = 0; i < fisheye_up_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
                 if (is_color) {
-                    outImg.encoding = "bgr8";
+                    outImg.encoding = "rgb8";
                 } else {
                     outImg.encoding = "mono8";
                 }
-
+                
                 fisheye_up_imgs_cuda[i].download(outImg.image);
+                if (!outImg.image.empty())
+                    cv::cvtColor(outImg.image, outImg.image, cv::COLOR_BGR2RGB);
                 images.up_cams.push_back(*outImg.toImageMsg());
             }
 
             for (unsigned int i = 0; i < fisheye_down_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
                 if (is_color) {
-                    outImg.encoding = "bgr8";
+                    outImg.encoding = "rgb8";
                 } else {
                     outImg.encoding = "mono8";
                 }
 
                 fisheye_down_imgs_cuda[i].download(outImg.image);
+                if (!outImg.image.empty())
+                    cv::cvtColor(outImg.image, outImg.image, cv::COLOR_BGR2RGB);
                 images.down_cams.push_back(*outImg.toImageMsg());
             }
 
