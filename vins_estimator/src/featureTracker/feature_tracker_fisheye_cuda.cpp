@@ -288,10 +288,8 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     }
 
 
-    if (!is_blank_init) {
-        ROS_INFO("DetectPoints %fms", t_d.toc());
-        detected_time_sum = detected_time_sum + t_d.toc();
-    }
+    ROS_INFO("DetectPoints %fms", t_d.toc());
+    detected_time_sum = detected_time_sum + t_d.toc();
 
     addPointsFisheye();
 
@@ -301,6 +299,14 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
         cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr_cuda, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
         ft_time_sum += tic2.toc();
+    }
+
+    if (is_blank_init) {
+        detected_time_sum = 0;
+        ft_time_sum = 0;
+        count = 0;
+        auto ff = setup_feature_frame();
+        return ff;
     }
 
     //Undist points
