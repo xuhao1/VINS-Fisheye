@@ -320,7 +320,7 @@ namespace vins_nodelet_pkg
                 cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
                 fisheye_handler->img_callback(0, mat, mat, true);
                 estimator.inputFisheyeImage(0, 
-                        fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray);
+                        fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray, true);
                 std::cout<< "Initialize with blank cost" << blank.toc() << std::endl;
 
                 sub_imu = n.subscribe(IMU_TOPIC, 2000, &VinsNodeletClass::imu_callback, this);

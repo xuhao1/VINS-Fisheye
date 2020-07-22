@@ -181,6 +181,12 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down,
         bool is_blank_init) {
     cur_time = _cur_time;
+    static double detected_time_sum = 0;
+    static double count = 0;
+    
+    if (!is_blank_init) {
+        count += 1;
+    }
 
     TicToc t_r;
     cv::cuda::GpuMat up_side_img = concat_side(fisheye_imgs_up);
@@ -223,13 +229,6 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         cv::cuda::cvtColor(down_side_img, down_side_img, cv::COLOR_BGR2GRAY);
     }
 
-    //If has predict;
-    if (is_blank_init) {
-        prev_up_top_pts.push_back(cv::Point(10, 10));
-        prev_up_side_pts.push_back(cv::Point(10, 10));
-        prev_down_top_pts.push_back(cv::Point(10, 10));
-    }
-
     if (enable_up_top) {
         // ROS_INFO("Tracking top");
         cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_img, prev_up_top_pts, ids_up_top, track_up_top_cnt, false);
@@ -244,9 +243,8 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     
     ROS_INFO("FT %fms", t_r.toc());
 
-    setMaskFisheye();
-
-    ROS_INFO("SetMaskFisheye %fms", t_r.toc());
+    // setMaskFisheye();
+    // ROS_INFO("SetMaskFisheye %fms", t_r.toc());
     
     TicToc t_d;
     if (enable_up_top) {
@@ -261,7 +259,11 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         detectPoints(up_side_img, n_pts_up_side, cur_up_side_pts, SIDE_PTS_CNT);
     }
 
-    ROS_INFO("DetectPoints %fms", t_d.toc());
+
+    if (!is_blank_init) {
+        ROS_INFO("DetectPoints %fms", t_d.toc());
+        detected_time_sum = detected_time_sum + t_d.toc();
+    }
 
     addPointsFisheye();
 
@@ -270,16 +272,6 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
         cur_down_side_pts = opticalflow_track(down_side_img, up_side_img, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
         // ROS_INFO("Down side try to track %ld pts; gives %ld:%ld", cur_up_side_pts.size(), cur_down_side_pts.size(), ids_down_side.size());
-    }
-
-    if (is_blank_init) {
-
-        prev_up_top_pts.clear();
-        prev_up_side_pts.clear();
-        prev_down_top_pts.clear();
-
-        auto ff = setup_feature_frame();
-        return ff;
     }
 
     //Undist points
@@ -330,7 +322,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     // hasPrediction = false;
     auto ff = setup_feature_frame();
 
-    printf("FT Whole %fms; MainProcess %fms concat %fms PTS %ld T\n", t_r.toc(), tcost_all, concat_cost, ff.size());
+    printf("FT Whole %fms; MainProcess %fms Detect AVG %fms concat %fms PTS %ld T\n", t_r.toc(), detected_time_sum/count, tcost_all, concat_cost, ff.size());
     return ff;
 }
 #endif

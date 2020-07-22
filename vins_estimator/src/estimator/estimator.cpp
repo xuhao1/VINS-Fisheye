@@ -62,7 +62,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
     TicToc featureTrackerTime;
 
     if (FISHEYE) {
-            featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up, fisheye_imgs_down);
+        featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up, fisheye_imgs_down);
     } else {
         if(_img1.empty())
             featureFrame = featureTracker.trackImage(t, _img);
@@ -92,7 +92,10 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
 {
     static int img_track_count = 0;
     static double sum_time = 0;
-    inputImageCnt++;
+    if (!is_blank_init) {
+        inputImageCnt++;
+    }
+    
     FeatureFrame featureFrame;
     TicToc featureTrackerTime;
 
