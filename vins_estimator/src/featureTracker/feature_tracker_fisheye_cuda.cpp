@@ -212,6 +212,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         bool is_blank_init) {
     cur_time = _cur_time;
     static double detected_time_sum = 0;
+    static double ft_time_sum = 0;
     static double count = 0;
     
     if (!is_blank_init) {
@@ -224,7 +225,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     cv::cuda::GpuMat up_top_img = fisheye_imgs_up[0];
     cv::cuda::GpuMat down_top_img = fisheye_imgs_down[0];
     double concat_cost = t_r.toc();
-
+    TicToc t_ft;
     top_size = up_top_img.size();
     side_size = up_side_img.size();
 
@@ -271,14 +272,11 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_pyr_cuda, prev_down_top_pts, ids_down_top, track_down_top_cnt, false);
     }
     
-    ROS_INFO("FT %fms", t_r.toc());
-
+    ft_time_sum += t_ft.toc();
     // setMaskFisheye();
-    // ROS_INFO("SetMaskFisheye %fms", t_r.toc());
     
     TicToc t_d;
     if (enable_up_top) {
-        // ROS_INFO("Detecting top");
         detectPoints(up_top_img, n_pts_up_top, cur_up_top_pts, TOP_PTS_CNT);
     }
     if (enable_down_top) {
@@ -297,11 +295,12 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
 
     addPointsFisheye();
 
+    TicToc tic2;
     if (enable_down_side) {
         ids_down_side = ids_up_side;
         std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
         cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr_cuda, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
-        // ROS_INFO("Down side try to track %ld pts; gives %ld:%ld", cur_up_side_pts.size(), cur_down_side_pts.size(), ids_down_side.size());
+        ft_time_sum += tic2.toc();
     }
 
     //Undist points
@@ -352,7 +351,10 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     // hasPrediction = false;
     auto ff = setup_feature_frame();
 
-    printf("FT Whole %fms; Detect AVG %fms concat %fms PTS %ld T\n", t_r.toc(), detected_time_sum/count, concat_cost, ff.size());
+    printf("FT Whole %fms; Detect AVG %fms OpticalFlow %fms concat %fms PTS %ld T\n", 
+        t_r.toc(), detected_time_sum/count, 
+        ft_time_sum/count,
+        concat_cost, ff.size());
     return ff;
 }
 #endif
