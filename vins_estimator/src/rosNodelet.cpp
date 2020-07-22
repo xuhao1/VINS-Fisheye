@@ -179,7 +179,7 @@ class FisheyeFlattenHandler
             flatten_time_sum += t_f.toc();
         }
 
-        auto has_image_in_buffer() {
+        bool has_image_in_buffer() {
             return fisheye_cuda_buf_down.size() > 0;
         }
 
@@ -348,7 +348,7 @@ namespace vins_nodelet_pkg
                 TicToc t0;
                 if (fisheye_handler->has_image_in_buffer()) {
                     auto ret = fisheye_handler->pop_from_buffer();
-                    estimator.inputFisheyeImage(std::get<double>(ret), std::get<1>(ret), std::get<2>(ret));
+                    estimator.inputFisheyeImage(std::get<0>(ret), std::get<1>(ret), std::get<2>(ret));
                     ROS_INFO("Input Image: %fms", t0.toc());
                 }
             }
