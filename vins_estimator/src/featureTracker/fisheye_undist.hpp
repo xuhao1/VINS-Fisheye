@@ -12,8 +12,8 @@
 #include "../utility/tic_toc.h"
 
 #define DEG_TO_RAD (M_PI / 180.0)
-// #define REMAP_FUNC cv::INTER_LINEAR
-#define REMAP_FUNC cv::INTER_NEAREST
+#define REMAP_FUNC cv::INTER_LINEAR
+// #define REMAP_FUNC cv::INTER_NEAREST
 class FisheyeUndist {
 
     camodocal::CameraPtr cam;

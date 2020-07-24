@@ -172,9 +172,10 @@ class FisheyeFlattenHandler
                     enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
             }
 
+            double tf = t_f.toc();
             pack_and_send_cuda();
 
-            ROS_INFO("Flatten cost %fms Flatten AVG %fms", t_f.toc(), flatten_time_sum/count);
+            ROS_INFO("img_callback cost %fms flatten %fms Flatten AVG %fms", t_f.toc(), tf, flatten_time_sum/count);
 
             flatten_time_sum += t_f.toc();
         }
@@ -239,7 +240,7 @@ class FisheyeFlattenHandler
             flatten_pub.publish(images);
             pack_send_time += t_p.toc();
 
-            ROS_INFO("Pack and send AVG %fms", pack_send_time/count);
+            ROS_INFO("Pack and send AVG %fms this %fms", pack_send_time/count, t_p.toc());
         }
 
 
