@@ -117,8 +117,11 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
     }
 
     double dt = featureTrackerTime.toc();
-    sum_time += dt;
-    img_track_count ++;
+
+    if (inputImageCnt > 100) {
+        sum_time += dt;
+        img_track_count ++;
+    }
 
     printf("featureTracker time: AVG %f NOW %f inputImageCnt %d Bufsize %ld imgs buf Size %ld\n", 
         sum_time/img_track_count, dt, inputImageCnt, featureBuf.size(), fisheye_imgs_upBuf_cuda.size());

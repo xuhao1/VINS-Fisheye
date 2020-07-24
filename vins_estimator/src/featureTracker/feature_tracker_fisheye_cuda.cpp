@@ -274,6 +274,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     
     ft_time_sum += t_ft.toc();
     // setMaskFisheye();
+    ROS_WARN("Optical flow 1 %fms", t_ft.toc());
     
     TicToc t_d;
     if (enable_up_top) {
@@ -299,6 +300,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
         cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr_cuda, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
         ft_time_sum += tic2.toc();
+        ROS_WARN("Optical flow 2 %fms", tic2.toc());
     }
 
     if (is_blank_init) {
