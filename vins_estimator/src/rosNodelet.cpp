@@ -179,7 +179,7 @@ class FisheyeFlattenHandler
             flatten_time_sum += t_f.toc();
         }
 
-        auto has_image_in_buffer() {
+        bool has_image_in_buffer() {
             return fisheye_cuda_buf_down.size() > 0;
         }
 
@@ -211,24 +211,28 @@ class FisheyeFlattenHandler
             for (unsigned int i = 0; i < fisheye_up_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
                 if (is_color) {
-                    outImg.encoding = "bgr8";
+                    outImg.encoding = "rgb8";
                 } else {
                     outImg.encoding = "mono8";
                 }
-
+                
                 fisheye_up_imgs_cuda[i].download(outImg.image);
+                if (!outImg.image.empty())
+                    cv::cvtColor(outImg.image, outImg.image, cv::COLOR_BGR2RGB);
                 images.up_cams.push_back(*outImg.toImageMsg());
             }
 
             for (unsigned int i = 0; i < fisheye_down_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
                 if (is_color) {
-                    outImg.encoding = "bgr8";
+                    outImg.encoding = "rgb8";
                 } else {
                     outImg.encoding = "mono8";
                 }
 
                 fisheye_down_imgs_cuda[i].download(outImg.image);
+                if (!outImg.image.empty())
+                    cv::cvtColor(outImg.image, outImg.image, cv::COLOR_BGR2RGB);
                 images.down_cams.push_back(*outImg.toImageMsg());
             }
 
@@ -348,7 +352,7 @@ namespace vins_nodelet_pkg
                 TicToc t0;
                 if (fisheye_handler->has_image_in_buffer()) {
                     auto ret = fisheye_handler->pop_from_buffer();
-                    estimator.inputFisheyeImage(std::get<double>(ret), std::get<1>(ret), std::get<2>(ret));
+                    estimator.inputFisheyeImage(std::get<0>(ret), std::get<1>(ret), std::get<2>(ret));
                     ROS_INFO("Input Image: %fms", t0.toc());
                 }
             }
