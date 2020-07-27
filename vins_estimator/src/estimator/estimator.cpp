@@ -87,6 +87,11 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
     }
 }
 
+
+bool Estimator::is_next_odometry_frame() {
+    return (inputImageCnt % 2 == 1);
+}
+
 void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up_cuda, 
         const CvCudaImages & fisheye_imgs_down_cuda, bool is_blank_init)
 {
