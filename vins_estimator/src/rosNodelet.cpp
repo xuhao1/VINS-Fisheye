@@ -47,6 +47,8 @@ namespace backward
 #include "vins/FlattenImages.h"
 #include "utility/opencv_cuda.h"
 
+geometry_msgs::Pose pose_from_PQ(Eigen::Vector3d P, 
+    const Eigen::Quaterniond & Q);
 class FisheyeFlattenHandler
 {
     vector<FisheyeUndist> fisheys_undists;
@@ -111,6 +113,8 @@ class FisheyeFlattenHandler
                 mask_down[3] = true;
             }
         }
+
+
 
         void img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
         {
@@ -208,10 +212,33 @@ class FisheyeFlattenHandler
             }
         }
 
-        void pack_and_send_cuda(ros::Time stamp, const CvCudaImages & fisheye_up_imgs_cuda, const CvCudaImages & fisheye_down_imgs_cuda) {
+        void setup_extrinsic(vins::FlattenImages & images, const Estimator & estimator) {
+            static Eigen::Quaterniond t_left = Eigen::Quaterniond(Eigen::AngleAxisd(-M_PI / 2, Eigen::Vector3d(1, 0, 0)));
+            static Eigen::Quaterniond t_down = Eigen::Quaterniond(Eigen::AngleAxisd(M_PI, Eigen::Vector3d(1, 0, 0)));
+
+            std::vector<Eigen::Quaterniond> t_dirs;
+            t_dirs.push_back(Eigen::Quaterniond::Identity());
+            t_dirs.push_back(t_left);
+            for (unsigned int i = 0; i < 3; i ++) {
+                t_dirs.push_back(t_dirs.back() * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0)));
+            }
+
+            for (unsigned int i = 0; i < 4; i ++) {
+                images.extrinsic_up_cams.push_back(
+                    pose_from_PQ(estimator.tic[0], Eigen::Quaterniond(estimator.ric[0])*t_dirs[i])
+                );
+                images.extrinsic_down_cams.push_back(
+                    pose_from_PQ(estimator.tic[1], Eigen::Quaterniond(estimator.ric[1])*t_down*t_dirs[i])
+                );
+            }
+        }
+
+        void pack_and_send_cuda(ros::Time stamp, const CvCudaImages & fisheye_up_imgs_cuda, const CvCudaImages & fisheye_down_imgs_cuda, const Estimator & estimator) {
             TicToc t_p;
             vins::FlattenImages images;
             static double pack_send_time = 0;
+
+            setup_extrinsic(images, estimator);
 
             images.header.stamp = stamp;
             static int count = 0;
@@ -370,7 +397,7 @@ namespace vins_nodelet_pkg
                     pack_and_send_mtx.lock();
                     t_last_send = std::get<0>(cur_frame);
                     need_to_pack_and_send = false;
-                    fisheye_handler->pack_and_send_cuda(ros::Time(t_last_send), std::get<1>(cur_frame), std::get<2>(cur_frame));
+                    fisheye_handler->pack_and_send_cuda(ros::Time(t_last_send), std::get<1>(cur_frame), std::get<2>(cur_frame), estimator);
                     pack_and_send_mtx.unlock();
                 }
             }
