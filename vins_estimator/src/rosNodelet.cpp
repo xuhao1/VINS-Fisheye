@@ -264,7 +264,7 @@ class FisheyeFlattenHandler
                 images.up_cams.push_back(*outImg.toImageMsg());
             }
 
-            for (unsigned int i = 1; i < fisheye_down_imgs_cuda.size(); i++) {
+            for (unsigned int i = 0; i < fisheye_down_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
                 if (is_color) {
                     outImg.encoding = "8UC3";
