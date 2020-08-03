@@ -15,7 +15,7 @@ output_path: "/home/xuhao/output"
 depth_config: "depth_cuda.yaml"
 cam0_calib: "up.yaml"
 cam1_calib: "down.yaml"
-image_width: 512 # For fisheye, this indicate the flattened image width; min 100; 300 - 500 is good for vins
+image_width: 400 # For fisheye, this indicate the flattened image width; min 100; 300 - 500 is good for vins
 image_height: 200
 show_width: 1080
 

@@ -247,10 +247,14 @@ class FisheyeFlattenHandler
             for (unsigned int i = 0; i < fisheye_up_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
                 if (is_color) {
-                    outImg.encoding = "rgb8";
+                    outImg.encoding = "8UC3";
                 } else {
                     outImg.encoding = "mono8";
                 }
+
+                //Hf net uses mono8 image
+                outImg.encoding = "mono8";
+
                 TicToc to;
                 fisheye_up_imgs_cuda[i].download(outImg.image);
                 // std:: cout << "TO download" << to.toc() << std::endl;
@@ -263,10 +267,12 @@ class FisheyeFlattenHandler
             for (unsigned int i = 1; i < fisheye_down_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
                 if (is_color) {
-                    outImg.encoding = "rgb8";
+                    outImg.encoding = "8UC3";
                 } else {
                     outImg.encoding = "mono8";
                 }
+
+                outImg.encoding = "mono8";
                 fisheye_down_imgs_cuda[i].download(outImg.image);
                 images.down_cams.push_back(*outImg.toImageMsg());
             }
@@ -407,7 +413,7 @@ namespace vins_nodelet_pkg
                 if (fisheye_handler->has_image_in_buffer()) {
                     auto ret = fisheye_handler->pop_from_buffer();
                     auto & cur_frame_gray = ret.first;
-                    cur_frame = ret.second;
+                    cur_frame = ret.first;
                     bool is_odometry_frame = estimator.is_next_odometry_frame();
 
                     if (is_odometry_frame) {
