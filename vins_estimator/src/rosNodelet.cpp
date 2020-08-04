@@ -53,6 +53,7 @@ class FisheyeFlattenHandler
 {
     vector<FisheyeUndist> fisheys_undists;
 
+    ros::Publisher flatten_gray_pub;
     ros::Publisher flatten_pub;
     std::vector<bool> mask_up, mask_down;
     ros::Time stamp;
@@ -87,6 +88,7 @@ class FisheyeFlattenHandler
             readIntrinsicParameter(CAM_NAMES);
 
             flatten_pub = n.advertise<vins::FlattenImages>("/vins_estimator/flattened_raw", 1);
+            flatten_gray_pub = n.advertise<vins::FlattenImages>("/vins_estimator/flattened_gray", 1);
 
             if (enable_up_top) {
                 mask_up[0] = true;        
@@ -233,52 +235,66 @@ class FisheyeFlattenHandler
             }
         }
 
-        void pack_and_send_cuda(ros::Time stamp, const CvCudaImages & fisheye_up_imgs_cuda, const CvCudaImages & fisheye_down_imgs_cuda, const Estimator & estimator) {
+        void pack_and_send_cuda(ros::Time stamp, 
+            const CvCudaImages & fisheye_up_imgs_cuda, const CvCudaImages & fisheye_down_imgs_cuda, 
+            const CvCudaImages & fisheye_up_imgs_cuda_gray, const CvCudaImages & fisheye_down_imgs_cuda_gray, 
+            const Estimator & estimator) {
             TicToc t_p;
             vins::FlattenImages images;
+            vins::FlattenImages images_gray;
             static double pack_send_time = 0;
 
             setup_extrinsic(images, estimator);
+            setup_extrinsic(images_gray, estimator);
 
             images.header.stamp = stamp;
+            images_gray.header.stamp = stamp;
             static int count = 0;
             count ++;
 
             for (unsigned int i = 0; i < fisheye_up_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
+                cv_bridge::CvImage outImg_gray;
                 if (is_color) {
                     outImg.encoding = "8UC3";
                 } else {
                     outImg.encoding = "mono8";
                 }
 
-                //Hf net uses mono8 image
-                outImg.encoding = "mono8";
-
+                outImg_gray.encoding = "mono8";
                 TicToc to;
                 fisheye_up_imgs_cuda[i].download(outImg.image);
-                // std:: cout << "TO download" << to.toc() << std::endl;
-                if (!outImg.image.empty()) {
-                    // cv::cvtColor(outImg.image, outImg.image, cv::COLOR_BGR2RGB);
-                }
                 images.up_cams.push_back(*outImg.toImageMsg());
+
+                if (i == 2) {
+                    fisheye_up_imgs_cuda_gray[i].download(outImg_gray.image);
+                }
+                images_gray.up_cams.push_back(*outImg_gray.toImageMsg());
             }
 
             for (unsigned int i = 0; i < fisheye_down_imgs_cuda.size(); i++) {
                 cv_bridge::CvImage outImg;
+                cv_bridge::CvImage outImg_gray;
+
                 if (is_color) {
                     outImg.encoding = "8UC3";
                 } else {
                     outImg.encoding = "mono8";
                 }
-
-                outImg.encoding = "mono8";
+                
+                outImg_gray.encoding = "mono8";
                 fisheye_down_imgs_cuda[i].download(outImg.image);
                 images.down_cams.push_back(*outImg.toImageMsg());
+                
+                if (i == 2) {
+                    fisheye_down_imgs_cuda_gray[i].download(outImg_gray.image);
+                }
+                images_gray.down_cams.push_back(*outImg_gray.toImageMsg());
             }
 
             // ROS_INFO("Pack cost %fms", t_p.toc());
             flatten_pub.publish(images);
+            flatten_gray_pub.publish(images_gray);
             pack_send_time += t_p.toc();
 
             ROS_INFO("Pack and send AVG %fms this %fms", pack_send_time/count, t_p.toc());
@@ -395,6 +411,7 @@ namespace vins_nodelet_pkg
             std::mutex pack_and_send_mtx;
             bool need_to_pack_and_send = false;
             std::tuple<double, CvCudaImages, CvCudaImages> cur_frame;
+            std::tuple<double, CvCudaImages, CvCudaImages> cur_frame_gray;
 
             void pack_and_send_thread(const ros::TimerEvent & e) {
                 if (need_to_pack_and_send && std::get<0>(cur_frame) > t_last_send) {
@@ -403,7 +420,10 @@ namespace vins_nodelet_pkg
                     pack_and_send_mtx.lock();
                     t_last_send = std::get<0>(cur_frame);
                     need_to_pack_and_send = false;
-                    fisheye_handler->pack_and_send_cuda(ros::Time(t_last_send), std::get<1>(cur_frame), std::get<2>(cur_frame), estimator);
+                    fisheye_handler->pack_and_send_cuda(ros::Time(t_last_send), 
+                        std::get<1>(cur_frame), std::get<2>(cur_frame), 
+                        std::get<1>(cur_frame_gray), std::get<2>(cur_frame_gray), 
+                        estimator);
                     pack_and_send_mtx.unlock();
                 }
             }
@@ -412,7 +432,7 @@ namespace vins_nodelet_pkg
                 TicToc t0;
                 if (fisheye_handler->has_image_in_buffer()) {
                     auto ret = fisheye_handler->pop_from_buffer();
-                    auto & cur_frame_gray = ret.first;
+                    cur_frame_gray = ret.first;
                     cur_frame = ret.first;
                     bool is_odometry_frame = estimator.is_next_odometry_frame();
 
