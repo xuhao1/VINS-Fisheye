@@ -433,7 +433,7 @@ namespace vins_nodelet_pkg
                 if (fisheye_handler->has_image_in_buffer()) {
                     auto ret = fisheye_handler->pop_from_buffer();
                     cur_frame_gray = ret.first;
-                    cur_frame = ret.first;
+                    cur_frame = ret.second;
                     bool is_odometry_frame = estimator.is_next_odometry_frame();
 
                     if (is_odometry_frame) {
