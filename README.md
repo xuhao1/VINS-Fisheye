@@ -1,5 +1,7 @@
 # VINS-Fisheye
-This repository is a version of [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion) with Dual Fisheye and GPU and Visionworks acceleration. It can run on Nvidia TX2 in real-time, also provide depth estimation based on fisheye.
+This repository is a Fisheye version of [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion) with GPU and Visionworks acceleration. It can run on Nvidia TX2 in real-time, also provide depth estimation based on fisheye.
+
+Only stereo visual-inertial-odometry is supported for fisheye cameras now.
 
 ![Image of PCL](support_files/point_cloud.png)
 *Drone path and RGB point cloud estimation*
