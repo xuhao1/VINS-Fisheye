@@ -128,6 +128,10 @@ pub_cloud_per_direction: 0
 
 ```
 
+# See also
+__Autonomous aerial robot using dual‐fisheye cameras, Wenliang Gao, Kaixuan Wang, Wenchao Ding, Fei Gao, Tong Qin, Shaojie Shen, 2020 Journal of Field Robotics (JFR)__ for Fisheye camera navigation
+__H. Xu, L. Wang, Y. Zhang and S. Shen. (2020) Decentralized visual-inertial-UWB fusion for relative state estimation of aerial swarm. in 2020 IEEE International Conference on Robotics and Automation (ICRA). IEEE.__ for swarm localization.
+
 # VINS-Fusion
 ## An optimization-based multi-sensor state estimator
 
