@@ -149,7 +149,9 @@ namespace vins_nodelet_pkg
                 flatten_pub.publish(images);
                 pack_send_time += t_p.toc();
 
-                ROS_INFO("Flatten AVG %fms; Pack and send AVG %fms", flatten_time_sum/count, pack_send_time/count);
+                if (ENABLE_PERF_OUTPUT) {
+                    ROS_INFO("Flatten AVG %fms; Pack and send AVG %fms", flatten_time_sum/count, pack_send_time/count);
+                }
             }
 
 

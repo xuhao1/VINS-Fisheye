@@ -173,8 +173,10 @@ class FisheyeFlattenHandler
                 } else {
                     return;
                 }
-
-                ROS_INFO("CvtColor %fms", t_c.toc());
+                
+                if (ENABLE_PERF_OUTPUT) {
+                    ROS_INFO("CvtColor %fms", t_c.toc());
+                }
 
             } else {
                 fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
@@ -183,7 +185,9 @@ class FisheyeFlattenHandler
             }
 
             double tf = t_f.toc();
-            ROS_INFO("img_callback cost %fms flatten %fms Flatten AVG %fms", t_f.toc(), tf, flatten_time_sum/count);
+            if (ENABLE_PERF_OUTPUT) {
+                ROS_INFO("img_callback cost %fms flatten %fms Flatten AVG %fms", t_f.toc(), tf, flatten_time_sum/count);
+            }
 
             flatten_time_sum += t_f.toc();
         }
@@ -297,7 +301,9 @@ class FisheyeFlattenHandler
             flatten_gray_pub.publish(images_gray);
             pack_send_time += t_p.toc();
 
-            ROS_INFO("Pack and send AVG %fms this %fms", pack_send_time/count, t_p.toc());
+            if (ENABLE_PERF_OUTPUT) {
+                ROS_INFO("Pack and send AVG %fms this %fms", pack_send_time/count, t_p.toc());
+            }
         }
 
 
@@ -416,7 +422,6 @@ namespace vins_nodelet_pkg
             void pack_and_send_thread(const ros::TimerEvent & e) {
                 if (need_to_pack_and_send && std::get<0>(cur_frame) > t_last_send) {
                     //need to pack and send
-                    ROS_INFO("Need to pack and send");
                     pack_and_send_mtx.lock();
                     t_last_send = std::get<0>(cur_frame);
                     need_to_pack_and_send = false;
@@ -446,7 +451,10 @@ namespace vins_nodelet_pkg
                     //Need to wait for pack and send to end
                     pack_and_send_mtx.lock();
                     pack_and_send_mtx.unlock();
-                    ROS_INFO("Input Image: %fms, whole %fms", t_0, t0.toc());
+
+                    if(ENABLE_PERF_OUTPUT) {
+                        ROS_INFO("[processFlattened]Input Image: %fms, whole %fms", t_0, t0.toc());
+                    }
 
                 }
             }

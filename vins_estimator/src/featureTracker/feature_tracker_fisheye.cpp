@@ -341,7 +341,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time, const std::vec
         }
     }
 
-    ROS_INFO("Detect cost %fms", t_d.toc());
+    // ROS_INFO("Detect cost %fms", t_d.toc());
 
     static double detect_sum = 0;
 
@@ -360,7 +360,7 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time, const std::vec
         }
     }
 
-    ROS_INFO("Tracker 2 cost %fms", t_tk.toc());
+    // ROS_INFO("Tracker 2 cost %fms", t_tk.toc());
 
     //Undist points
     cur_up_top_un_pts = undistortedPtsTop(cur_up_top_pts, fisheys_undists[0]);

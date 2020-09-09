@@ -128,8 +128,10 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
         img_track_count ++;
     }
 
-    printf("featureTracker time: AVG %f NOW %f inputImageCnt %d Bufsize %ld imgs buf Size %ld\n", 
-        sum_time/img_track_count, dt, inputImageCnt, featureBuf.size(), fisheye_imgs_upBuf_cuda.size());
+    if(ENABLE_PERF_OUTPUT) {
+        printf("featureTracker time: AVG %f NOW %f inputImageCnt %d Bufsize %ld imgs buf Size %ld\n", 
+            sum_time/img_track_count, dt, inputImageCnt, featureBuf.size(), fisheye_imgs_upBuf_cuda.size());
+    }
    
 }
 
@@ -378,7 +380,6 @@ void Estimator::processMeasurements()
 
             printStatistics(*this, 0);
 
-            ROS_INFO("to print statitcs %fms", t_process.toc());
             std_msgs::Header header;
             header.frame_id = "world";
             header.stamp = ros::Time(feature.first);
@@ -392,12 +393,10 @@ void Estimator::processMeasurements()
             pubKeyframe(*this);
             pubTF(*this, header);
 
-            ROS_INFO("to pubTF %fms", t_process.toc());
-            
             double dt = t_process.toc();
             mea_sum_time += dt;
             mea_track_count ++;
-            printf("process measurement time: AVG %f NOW %f\n", mea_sum_time/mea_track_count, dt );
+            ROS_INFO("process measurement time: AVG %f NOW %f\n", mea_sum_time/mea_track_count, dt );
         }
 
         std::chrono::milliseconds dura(2);
@@ -602,7 +601,9 @@ void Estimator::processImage(const FeatureFrame &image, const double header)
             f_manager.initFramePoseByPnP(frame_count, Ps, Rs, tic, ric);
             TicToc t_ic;
             f_manager.triangulate(frame_count, Ps, Rs, tic, ric);
-            ROS_INFO("Triangulation cost %fms..", t_ic.toc());
+            if (ENABLE_PERF_OUTPUT) {
+                ROS_INFO("Triangulation cost %3.1fms..", t_ic.toc());
+            }
             if (frame_count == WINDOW_SIZE)
             {
                 map<double, ImageFrame>::iterator frame_it;
@@ -668,7 +669,7 @@ void Estimator::processImage(const FeatureFrame &image, const double header)
         f_manager.triangulate(frame_count, Ps, Rs, tic, ric);
         
         if(ENABLE_PERF_OUTPUT) {        
-            ROS_INFO("Triangulation cost %fms..", t_ic.toc());
+            ROS_INFO("Triangulation cost %3.1fms..", t_ic.toc());
         }
 
         optimization();
@@ -679,12 +680,10 @@ void Estimator::processImage(const FeatureFrame &image, const double header)
         
         set<int> removeIndex;
         outliersRejection(removeIndex);
-        ROS_INFO("Remove %ld outlier", removeIndex.size());
-        f_manager.removeOutlier(removeIndex);
-
-        if(ENABLE_PERF_OUTPUT) {
-            ROS_INFO("after removeOutlier cost %fms..", t_ic.toc());
+        if (ENABLE_PERF_OUTPUT) {
+            ROS_INFO("Remove %ld outlier", removeIndex.size());
         }
+        f_manager.removeOutlier(removeIndex);
         
         if(ENABLE_PERF_OUTPUT) {
             ROS_INFO("solver costs: %fms", t_solve.toc());
@@ -1013,7 +1012,7 @@ void Estimator::vector2double()
 
     auto deps = f_manager.getDepthVector();
     param_feature_id.clear();
-    ROS_INFO("Feature to solve num: %ld", deps.size());
+    printf("Feature to solve num: %ld;", deps.size());
     for (auto & it : deps) {
         // ROS_INFO("Feature %d invdepth %f feature index %d", it.first, it.second, param_feature_id.size());
         para_Feature[param_feature_id.size()][0] = it.second;
@@ -1336,9 +1335,12 @@ void Estimator::optimization()
     sum_iterations = sum_iterations + summary.iterations.size();
     sum_solve_time = sum_solve_time + summary.total_time_in_seconds;
     solve_count += 1;
-    ROS_INFO("AVG Iter %f time %fms Iterations : %d solver costs: %f \n", 
-        sum_iterations/solve_count, sum_solve_time*1000/solve_count,
-        static_cast<int>(summary.iterations.size()),  t_solver.toc());
+
+    if (ENABLE_PERF_OUTPUT) {
+        ROS_INFO("AVG Iter %f time %fms Iterations : %d solver costs: %f \n", 
+            sum_iterations/solve_count, sum_solve_time*1000/solve_count,
+            static_cast<int>(summary.iterations.size()),  t_solver.toc());
+    }
 
     double2vector();
     //printf("frame_count: %d \n", frame_count);

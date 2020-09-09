@@ -102,7 +102,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const FeatureFrame
     }
 
     if (frame_count < 2 || last_track_num < 20 || long_track_num < KEYFRAME_LONGTRACK_THRES || new_feature_num > 0.5 * last_track_num) {
-        ROS_INFO("Add KF LAST %d LONG %d new %d", last_track_num, long_track_num, new_feature_num);
+        ROS_DEBUG("Add KF LAST %d LONG %d new %d", last_track_num, long_track_num, new_feature_num);
         return true;
     }
 
@@ -119,7 +119,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const FeatureFrame
 
     if (parallax_num == 0)
     {
-        ROS_INFO("Add KF: Parallax num ==0");
+        ROS_DEBUG("Add KF: Parallax num ==0");
         return true;
     }
     else
@@ -129,7 +129,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const FeatureFrame
         last_average_parallax = parallax_sum / parallax_num * FOCAL_LENGTH;
         bool is_kf = parallax_sum / parallax_num >= MIN_PARALLAX;
         if (is_kf) {
-            ROS_INFO("Add KF: Parallax is bigger than required == 0");
+            ROS_DEBUG("Add KF: Parallax is bigger than required == 0");
         } 
         return is_kf;
     }

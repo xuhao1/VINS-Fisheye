@@ -192,9 +192,9 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
         reduceVector(track_cnt, status);
     }
 
-#ifdef PERF_OUTPUT
-    ROS_INFO("Optical flow costs: %fms Pts %ld", t_og.toc(), ids.size());
-#endif
+    if (ENABLE_PERF_OUTPUT) {
+        ROS_INFO("Optical flow costs: %fms Pts %ld", t_og.toc(), ids.size());
+    }
 
     //printf("track cnt %d\n", (int)ids.size());
     if (!is_lr_track)
@@ -241,22 +241,18 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     cur_down_side_un_pts.clear();
 
     if (!up_top_img.empty() && up_top_img.channels() == 3) {
-        std::cout << "CVT uptop" << std::endl;
         cv::cuda::cvtColor(up_top_img, up_top_img, cv::COLOR_BGR2GRAY);
     }
 
     if (!down_top_img.empty() && down_top_img.channels() == 3) {
-        std::cout << "CVT downtop" << std::endl;
         cv::cuda::cvtColor(down_top_img, down_top_img, cv::COLOR_BGR2GRAY);
     }
 
     if (!up_side_img.empty() && up_side_img.channels() == 3) {
-        std::cout << "CVT upside" << std::endl;
         cv::cuda::cvtColor(up_side_img, up_side_img, cv::COLOR_BGR2GRAY);
     }
 
     if (!down_side_img.empty() && down_side_img.channels() == 3) {
-        std::cout << "CVT downside" << std::endl;
         cv::cuda::cvtColor(down_side_img, down_side_img, cv::COLOR_BGR2GRAY);
     }
 
@@ -274,7 +270,10 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     
     ft_time_sum += t_ft.toc();
     // setMaskFisheye();
-    ROS_WARN("Optical flow 1 %fms", t_ft.toc());
+
+    if (ENABLE_PERF_OUTPUT) {
+        ROS_INFO("Optical flow 1 %fms", t_ft.toc());
+    }
     
     TicToc t_d;
     if (enable_up_top) {
@@ -289,7 +288,9 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     }
 
 
-    ROS_INFO("DetectPoints %fms", t_d.toc());
+    if (ENABLE_PERF_OUTPUT) {
+        ROS_INFO("DetectPoints %fms", t_d.toc());
+    }
     detected_time_sum = detected_time_sum + t_d.toc();
 
     addPointsFisheye();
@@ -300,7 +301,9 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
         cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr_cuda, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
         ft_time_sum += tic2.toc();
-        ROS_WARN("Optical flow 2 %fms", tic2.toc());
+        if (ENABLE_PERF_OUTPUT) {
+            ROS_INFO("Optical flow 2 %fms", tic2.toc());
+        }
     }
 
     if (is_blank_init) {
@@ -359,10 +362,13 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     // hasPrediction = false;
     auto ff = setup_feature_frame();
 
-    printf("FT Whole %fms; Detect AVG %fms OpticalFlow %fms concat %fms PTS %ld T\n", 
-        t_r.toc(), detected_time_sum/count, 
+    printf("FT Whole %3.1fms; PTS %ld, STEREO %ld; Detect AVG %3.1fms OpticalFlow %3.1fms concat %3.1fms\n", 
+        t_r.toc(), 
+        cur_up_top_un_pts.size() + cur_up_side_un_pts.size(),
+        cur_down_side_un_pts.size(),
+        detected_time_sum/count, 
         ft_time_sum/count,
-        concat_cost, ff.size());
+        concat_cost);
     return ff;
 }
 #endif
