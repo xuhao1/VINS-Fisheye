@@ -396,7 +396,10 @@ void Estimator::processMeasurements()
             double dt = t_process.toc();
             mea_sum_time += dt;
             mea_track_count ++;
-            ROS_INFO("process measurement time: AVG %f NOW %f\n", mea_sum_time/mea_track_count, dt );
+
+            if(ENABLE_PERF_OUTPUT) {
+                ROS_INFO("process measurement time: AVG %f NOW %f\n", mea_sum_time/mea_track_count, dt );
+            }
         }
 
         std::chrono::milliseconds dura(2);

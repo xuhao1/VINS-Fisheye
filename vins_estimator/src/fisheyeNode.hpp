@@ -50,6 +50,8 @@ class FisheyeFlattenHandler
 
     bool is_color = false;
 
+    std::mutex buf_lock;
+
     public:
 
 
@@ -154,12 +156,15 @@ class FisheyeFlattenHandler
                 }
 
                 if (!is_blank_init) {
+                    buf_lock.lock();
                     fisheye_cuda_buf_t.push(t);
                     fisheye_cuda_buf_up.push(fisheye_up_imgs_cuda_gray);
                     fisheye_cuda_buf_down.push(fisheye_down_imgs_cuda_gray);
 
                     fisheye_cuda_buf_up_color.push(fisheye_up_imgs_cuda);
                     fisheye_cuda_buf_down_color.push(fisheye_down_imgs_cuda);
+
+                    buf_lock.unlock();
                 } else {
                     return;
                 }
@@ -187,6 +192,7 @@ class FisheyeFlattenHandler
         }
 
         std::pair<std::tuple<double, CvCudaImages, CvCudaImages>, std::tuple<double, CvCudaImages, CvCudaImages>> pop_from_buffer() {
+            buf_lock.lock();
             if (fisheye_cuda_buf_t.size() > 0) {
                 auto t = fisheye_cuda_buf_t.front();
                 auto u = fisheye_cuda_buf_up.front();
@@ -201,9 +207,12 @@ class FisheyeFlattenHandler
                 fisheye_cuda_buf_up_color.pop();
                 fisheye_cuda_buf_down.pop();
                 fisheye_cuda_buf_down_color.pop();
+                buf_lock.unlock();
+
                 
                 return std::make_pair(std::make_tuple(t, u, d), std::make_tuple(t, uc, dc));
             } else {
+                buf_lock.unlock();
                 return std::make_pair(std::make_tuple(0.0, CvCudaImages(0), CvCudaImages(0)), std::make_tuple(0.0, CvCudaImages(0), CvCudaImages(0)));
             }
         }
