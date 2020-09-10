@@ -19,9 +19,6 @@ namespace vins_nodelet_pkg
         public:
             VinsNodeletClass() {}
         private:
-            message_filters::Subscriber<sensor_msgs::Image> * image_sub_l;
-            message_filters::Subscriber<sensor_msgs::Image> * image_sub_r;
-    
             virtual void onInit() override
             {
                 ros::NodeHandle & n = getMTPrivateNodeHandle();
@@ -29,5 +26,4 @@ namespace vins_nodelet_pkg
             }
     };
     PLUGINLIB_EXPORT_CLASS(vins_nodelet_pkg::VinsNodeletClass, nodelet::Nodelet);
-
 }

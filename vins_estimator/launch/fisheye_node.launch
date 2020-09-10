@@ -1,7 +1,7 @@
 <launch>
     <arg name="manager"     default="swarm_manager"/>
     <arg name="config_file" default="$(find vins)/../config/fisheye_ptgrey_n3/fisheye_cuda.yaml" />
-    <node pkg="vins" type="vins_node_fisheye" name="vins_estimator"  output="screen" launch-prefix="gdb -ex run --args" >
+    <node pkg="vins" type="vins_node_fisheye" name="vins_estimator"  output="screen" >
         <param name="config_file" type="string" value="$(arg config_file)"/>
         <param name="fisheye_external_flatten" type="bool" value="false"/>
     </node>

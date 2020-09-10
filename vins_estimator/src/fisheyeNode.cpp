@@ -293,7 +293,6 @@ void VinsNodeBaseClass::pack_and_send_thread(const ros::TimerEvent & e) {
 void VinsNodeBaseClass::processFlattened(const ros::TimerEvent & e) {
     TicToc t0;
     if (fisheye_handler->has_image_in_buffer()) {
-
         auto ret = fisheye_handler->pop_from_buffer();
         cur_frame_gray = ret.first;
         cur_frame = ret.second;
@@ -362,8 +361,10 @@ void VinsNodeBaseClass::imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     else
     {
         double now_time = ros::Time::now().toSec();
-        if (now_time - last_time > 3)
+        if (now_time - last_time > 3) {
+            std::cerr << "IMU DT too big, shuting ros down" << std::endl;
             ros::shutdown();
+        }
         last_time = now_time;
     }
     // test end

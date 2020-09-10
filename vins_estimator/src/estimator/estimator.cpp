@@ -148,7 +148,7 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
     if (fast_prop_inited) {
     //if (fast_prop_inited) {
         if (solver_flag !=  NON_LINEAR) {
-            ROS_ERROR("Is not non linear!!!!");
+            std::cerr<< "Is not non linear!!!!" << std::endl;
             exit(-1);
         }
         pubLatestOdometry(latest_P, latest_Q, latest_V, t);
