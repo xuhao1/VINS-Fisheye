@@ -134,6 +134,7 @@ add_library(vins_lib
     src/utility/utility.cpp
     src/utility/visualization.cpp
     src/utility/CameraPoseVisualization.cpp
+    src/utility/ros_utility.cpp
     src/initial/solve_5pts.cpp
     src/initial/initial_aligment.cpp
     src/initial/initial_sfm.cpp
@@ -154,8 +155,11 @@ target_link_libraries(stereo_depth ${catkin_LIBRARIES} ${OpenCV_LIBS} ${VisionWo
 target_link_libraries(vins_frontend ${catkin_LIBRARIES} ${OpenCV_LIBS} ${VisionWorks_LIBRARIES} ${LIBDW} OpenMP::OpenMP_CXX)
 
 
-add_executable(vins_node src/rosNodeTest.cpp )
-target_link_libraries(vins_node vins_lib estimator_lib vins_frontend stereo_depth vins_factors_lib vins_params_lib)
+#add_executable(vins_node src/rosNodeTest.cpp )
+#target_link_libraries(vins_node vins_lib estimator_lib vins_frontend stereo_depth vins_factors_lib vins_params_lib)
 
-add_library(vins_nodelet_lib src/rosNodelet.cpp src/flattenNodelet.cpp)
+add_executable(vins_node_fisheye src/rosNodeFisheye.cpp )
+target_link_libraries(vins_node_fisheye vins_lib estimator_lib vins_frontend stereo_depth vins_factors_lib vins_params_lib)
+
+add_library(vins_nodelet_lib src/rosNodelet.cpp)
 target_link_libraries(vins_nodelet_lib vins_lib estimator_lib vins_frontend stereo_depth vins_factors_lib vins_params_lib OpenMP::OpenMP_CXX)

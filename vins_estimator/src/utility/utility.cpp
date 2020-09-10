@@ -20,3 +20,4 @@ Eigen::Matrix3d Utility::g2R(const Eigen::Vector3d &g)
     // R0 = Utility::ypr2R(Eigen::Vector3d{-90, 0, 0}) * R0;
     return R0;
 }
+

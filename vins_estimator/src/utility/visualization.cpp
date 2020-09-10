@@ -12,6 +12,7 @@
 #include <sensor_msgs/PointCloud.h>
 #include <vins/FlattenImages.h>
 #include "cv_bridge/cv_bridge.h"
+#include "../utility/ros_utility.h"
 
 using namespace ros;
 using namespace Eigen;
@@ -62,19 +63,6 @@ void registerPub(ros::NodeHandle &n)
     cameraposevisual.setLineWidth(0.01);
 }
 
-
-geometry_msgs::Pose pose_from_PQ(Eigen::Vector3d P, 
-    const Eigen::Quaterniond & Q) {
-    geometry_msgs::Pose pose;
-    pose.position.x = P.x();
-    pose.position.y = P.y();
-    pose.position.z = P.z();
-    pose.orientation.x = Q.x();
-    pose.orientation.y = Q.y();
-    pose.orientation.z = Q.z();
-    pose.orientation.w = Q.w();
-    return pose;
-}
 
 
 void pubFlattenImages(const Estimator &estimator, const std_msgs::Header &header, 
