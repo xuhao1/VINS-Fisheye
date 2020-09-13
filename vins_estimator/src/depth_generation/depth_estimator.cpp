@@ -117,6 +117,11 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
             cv::cvtColor(_show, _show, cv::COLOR_GRAY2BGR);
             cv::hconcat(_show, disparity_color, _show);
 
+            int height = _show.rows;
+            for (int i = 0; i < 8; i ++ ) {
+                cv::line(_show, cv::Point2f(0, i * height/8), cv::Point2f(_show.cols, i * height/8), cv::Scalar(0, 255, 0));
+            }
+
             cv::imshow("RAW DISP", _show);
             cv::waitKey(2);
         }            

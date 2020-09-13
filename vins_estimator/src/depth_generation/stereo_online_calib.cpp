@@ -410,44 +410,6 @@ void StereoOnlineCalib::find_corresponding_pts(const cv::Mat & img1, const cv::M
     vector<cv::Point2f> _pts1, _pts2;
     cv::Mat mask;
     
-
-    // cv::goodFeaturesToTrack(img1, Pts1, 200, 0.01, 30);
-    // track_pts(img1, img2, Pts1, Pts2);
-
-    // for (unsigned int i = 0; i < Pts1.size(); i ++ ) {
-    //     cv::DMatch match;
-    //     match.queryIdx = i;
-    //     match.trainIdx = i;
-
-    //     cv::KeyPoint kp1;
-    //     cv::KeyPoint kp2;
-    //     kp1.pt = Pts1[i];
-    //     kp2.pt = Pts2[i];
-    //     kps1.push_back(kp1);
-    //     kps2.push_back(kp2);
-    //     good_matches.push_back(match);
-    // }
-
-
-    /*    
-    auto _orb = cv::ORB::create(1000, 1.2f, 8, 31, 0, 4, cv::ORB::HARRIS_SCORE, 31, 20);
-    _orb->detectAndCompute(img1, mask, kps1, desc1);
-    _orb->detectAndCompute(img2, mask, kps2, desc2);
-
-    if (desc1.empty() || desc2.empty()) {
-        return;
-    }
-    size_t j = 0;
-
-    cv::BFMatcher bfmatcher(cv::NORM_HAMMING2, true);
-    std::vector<cv::DMatch> matches;
-    bfmatcher.match(desc2, desc1, matches);
-    matches = filter_by_hamming(matches);
-
-    double thres = 0.05;
-    
-    matches = filter_by_E(matches, kps2, kps1, cameraMatrix, E_eig);*/
-
     extractor_img_desc_deepnet(img1, kps1, desc1);
     extractor_img_desc_deepnet(img2, kps2, desc2);
     cv::BFMatcher bfmatcher(cv::NORM_L2, true);
@@ -463,38 +425,26 @@ void StereoOnlineCalib::find_corresponding_pts(const cv::Mat & img1, const cv::M
         _pts2.push_back(kps2[_id2].pt);
     }
 
-    // ROS_INFO("BRIEF MATCH cost %fms", tic.toc());
-
-
-    // for(int i = 0; i < _pts1.size(); i ++) {
-    //     Pts1.push_back(_pts1[i]);
-    //     Pts2.push_back(_pts2[i]);
-    //     good_matches.push_back(matches[i]);
-    // }
-
     if (_pts1.size() > MINIUM_ESSENTIALMAT_SIZE) {
         cv::findEssentialMat(_pts1, _pts2, cameraMatrix, cv::RANSAC, 0.999, 1.0, status);
-    }
 
-    for(int i = 0; i < _pts1.size(); i ++) {
-        if (i < status.size() && status[i]) {
-            Pts1.push_back(_pts1[i]);
-            Pts2.push_back(_pts2[i]);
-            good_matches.push_back(matches[i]);
+        for(int i = 0; i < _pts1.size(); i ++) {
+            if (i < status.size() && status[i]) {
+                Pts1.push_back(_pts1[i]);
+                Pts2.push_back(_pts2[i]);
+                good_matches.push_back(matches[i]);
+            }
         }
-    }
-
-    // ROS_INFO("Total %ld cost %fms Find Essential cost %fms", Pts1.size(), tic.toc(), tic0.toc());
-    
-    // if (show) 
-    {
-        cv::Mat img1_cpu, img2_cpu, _show;
-        // img1.download(_img1);
-        // img2.download(_img2);
-        cv::drawMatches(img2, kps2, img1, kps1, good_matches, _show);
-        // cv::resize(_show, _show, cv::Size(), VISUALIZE_SCALE, VISUALIZE_SCALE);
-        cv::imshow("KNNMatch", _show);
-        cv::waitKey(2);
+        // if (show) 
+        {
+            cv::Mat img1_cpu, img2_cpu, _show;
+            // img1.download(_img1);
+            // img2.download(_img2);
+            cv::drawMatches(img2, kps2, img1, kps1, good_matches, _show);
+            // cv::resize(_show, _show, cv::Size(), VISUALIZE_SCALE, VISUALIZE_SCALE);
+            cv::imshow("KNNMatch", _show);
+            cv::waitKey(2);
+        }
     }
 }
 
