@@ -6,6 +6,7 @@
 #include <sensor_msgs/PointCloud.h>
 #include "../utility/tic_toc.h"
 #include "../utility/utility.h"
+#include <swarm_loop/HFNetSrv.h>
 
 #ifdef USE_CUDA
 #include <opencv2/cudaimgproc.hpp>
@@ -41,6 +42,9 @@ class StereoOnlineCalib {
     bool show;
     std::vector<cv::Point2f> left_pts, right_pts;
     double baseline = 0;
+
+    ros::ServiceClient deepnet_client;
+
 public:
     StereoOnlineCalib(cv::Mat _R, cv::Mat _T, cv::Mat _cameraMatrix, int _width, int _height, bool _show):
         cameraMatrix(_cameraMatrix), R0(_R), T0(_T), width(_width), height(_height), show(_show)
@@ -50,6 +54,12 @@ public:
         baseline = -T0_eig.x();
         update(_R, _T);
         E0_eig = E_eig;
+
+        ros::NodeHandle nh("~");
+        deepnet_client = nh.serviceClient<swarm_loop::HFNetSrv>("/swarm_loop/hfnet");
+        printf("Waiting for deepnet......\n");
+        deepnet_client.waitForExistence();
+        printf("Deepnet ready\n");
     }
 
     cv::Mat get_rotation() const {
@@ -86,16 +96,21 @@ public:
     void filter_points_by_region(std::vector<cv::Point2f> & good_left, std::vector<cv::Point2f> & good_right);
 
 #ifdef USE_CUDA
-    void find_corresponding_pts(cv::cuda::GpuMat & img1, cv::cuda::GpuMat & img2, std::vector<cv::Point2f> & Pts1, std::vector<cv::Point2f> & Pts2);
-    bool calibrate_extrincic(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right);
+    void find_corresponding_pts_cuda(const cv::cuda::GpuMat & img1, const cv::cuda::GpuMat & img2, std::vector<cv::Point2f> & Pts1, std::vector<cv::Point2f> & Pts2) {
+        cv::Mat _img1;
+        cv::Mat _img2;
+        img1.download(_img1);
+        img2.download(_img2);
+
+        find_corresponding_pts(_img1, _img2, Pts1, Pts2);
+    }
 #endif
 
-    void find_corresponding_pts(cv::Mat & img1, cv::Mat & img2, std::vector<cv::Point2f> & Pts1, std::vector<cv::Point2f> & Pts2) {}
-    bool calibrate_extrincic(cv::Mat & left, cv::Mat & right) {
-        std::cerr << "[calibrate_extrincic] Not implemented!" << std::endl;
-        exit(-1);
-        return false;
-    }
+
+    void extractor_img_desc_deepnet(const cv::Mat & image, std::vector<cv::KeyPoint> &Pts, cv::Mat & desc);
+    void find_corresponding_pts(const cv::Mat & img1, const cv::Mat & img2, std::vector<cv::Point2f> & Pts1, std::vector<cv::Point2f> & Pts2);
+
+    bool calibrate_extrincic(cv::InputArray & left, cv::InputArray & right);
 
     static std::vector<cv::KeyPoint> detect_orb_by_region(cv::Mat & _img, int features, int cols = 2, int rows = 4);
     bool calibrate_extrinsic_opencv(const std::vector<cv::Point2f> & left_pts, const std::vector<cv::Point2f> & right_pts);

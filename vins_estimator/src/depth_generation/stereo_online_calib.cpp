@@ -1,6 +1,8 @@
 #include "stereo_online_calib.hpp"
 #include "ceres/ceres.h"
 #include "ceres/rotation.h"
+#include <swarm_loop/HFNetSrv.h>
+#include "cv_bridge/cv_bridge.h"
 
 Eigen::Vector3d undist(const cv::Point2f & pt, const cv::Mat & cameraMatrix) {
     double x = (pt.x - cameraMatrix.at<double>(0, 2))/ cameraMatrix.at<double>(0, 0);
@@ -300,12 +302,18 @@ void StereoOnlineCalib::filter_points_by_region(std::vector<cv::Point2f> & good_
 
 }
 
-#ifdef USE_CUDA
-bool StereoOnlineCalib::calibrate_extrincic(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right) {
+bool StereoOnlineCalib::calibrate_extrincic(cv::InputArray & left, cv::InputArray & right) {
 
     std::vector<cv::Point2f> Pts1;
     std::vector<cv::Point2f> Pts2;
-    find_corresponding_pts(left, right, Pts1, Pts2);
+
+    if (left.isGpuMat()) {
+#ifdef USE_CUDA
+        find_corresponding_pts_cuda(left.getGpuMat(), right.getGpuMat(), Pts1, Pts2);
+#endif
+    } else {
+        find_corresponding_pts(left.getMat(), right.getMat(), Pts1, Pts2);
+    }
 
     if (Pts1.size() < MINIUM_ESSENTIALMAT_SIZE) {
         return false;
@@ -323,9 +331,9 @@ bool StereoOnlineCalib::calibrate_extrincic(cv::cuda::GpuMat & left, cv::cuda::G
     std::vector<cv::Point2f> good_right;
     
     filter_points_by_region(good_left, good_right);
-    cv::Mat _show;
-    left.download(_show);
-    cv::cvtColor(_show, _show, cv::COLOR_GRAY2BGR);
+    // cv::Mat _show;
+    // left.download(_show);
+    // cv::cvtColor(_show, _show, cv::COLOR_GRAY2BGR);
 
     std::map<int, cv::Scalar> region_colors;
     
@@ -347,35 +355,84 @@ bool StereoOnlineCalib::calibrate_extrincic(cv::cuda::GpuMat & left, cv::cuda::G
     // return calibrate_extrinsic_opencv(left_pts, right_pts);
 }
 
-void StereoOnlineCalib::find_corresponding_pts(cv::cuda::GpuMat & img1, cv::cuda::GpuMat & img2, 
+
+
+
+void track_pts(const cv::Mat &img_up, const cv::Mat &img_down, std::vector<cv::Point2f> &pts_up, std::vector<cv::Point2f> &pts_down);
+
+void StereoOnlineCalib::extractor_img_desc_deepnet(const cv::Mat & image, std::vector<cv::KeyPoint> &Keypoints, cv::Mat & _desc) {
+    swarm_loop::HFNetSrv hfnet_srv;
+    // hfnet_srv.request.image = msg;
+
+    cv_bridge::CvImage img;
+    img.encoding = "8UC1";
+    img.image = image;
+    hfnet_srv.request.image = *img.toImageMsg();
+    
+    if (deepnet_client.call(hfnet_srv))
+    {
+        Keypoints.clear();
+        auto &desc = hfnet_srv.response.global_desc;
+        auto &local_kpts = hfnet_srv.response.keypoints;
+        std::vector<float> &local_descriptors = hfnet_srv.response.local_descriptors;
+        if (desc.size() > 0)
+        {
+            ROS_INFO("DEEPNET gives %ld descriptor %ld", local_kpts.size(), local_descriptors.size());
+            for (auto pt: local_kpts) {
+                cv::KeyPoint kp;
+                kp.pt = cv::Point2f(pt.x, pt.y);
+                Keypoints.push_back(kp);
+            }
+            // _desc = cv::Mat(local_kpts.size(), 256, CV_32FC1, local_descriptors.data());
+            _desc = cv::Mat(local_kpts.size(), 256, CV_32FC1);
+            memcpy(_desc.data, local_descriptors.data(), local_descriptors.size()*sizeof(float) );
+        } else
+        {
+            ROS_WARN("Failed on deepnet; Please check deepnet queue");
+        }
+    }
+    else
+    {
+        ROS_INFO("FAILED on deepnet!!! Service error");
+    }
+}
+
+
+void StereoOnlineCalib::find_corresponding_pts(const cv::Mat & img1, const cv::Mat & img2, 
     std::vector<cv::Point2f> & Pts1, std::vector<cv::Point2f> & Pts2) {
     TicToc tic;
     std::vector<cv::KeyPoint> kps1, kps2;
     std::vector<cv::DMatch> good_matches;
-    // bool use_surf = false;
 
-    // auto _orb = cv::ORB::create(1000, 1.2f, 8, 31, 0, 4, cv::ORB::HARRIS_SCORE, 31, 20);
     std::cout << img1.size() << std::endl;
-    // auto _orb = cv::cuda::ORB::create(1000, 1.2f, 8, 31, 0, 4, cv::ORB::HARRIS_SCORE, 31, 20);
-    // cv::Mat _mask(img1.size(), CV_8UC1, cv::Scalar(255));
-    // cv::cuda::GpuMat mask(_mask);
     
     cv::Mat desc1, desc2;
-    cv::Mat _img1, _img2, mask;
+    vector<cv::Point2f> _pts1, _pts2;
+    cv::Mat mask;
     
-    img1.download(_img1);
-    img2.download(_img2);
-    // detect_orb_by_region
 
+    // cv::goodFeaturesToTrack(img1, Pts1, 200, 0.01, 30);
+    // track_pts(img1, img2, Pts1, Pts2);
+
+    // for (unsigned int i = 0; i < Pts1.size(); i ++ ) {
+    //     cv::DMatch match;
+    //     match.queryIdx = i;
+    //     match.trainIdx = i;
+
+    //     cv::KeyPoint kp1;
+    //     cv::KeyPoint kp2;
+    //     kp1.pt = Pts1[i];
+    //     kp2.pt = Pts2[i];
+    //     kps1.push_back(kp1);
+    //     kps2.push_back(kp2);
+    //     good_matches.push_back(match);
+    // }
+
+
+    /*    
     auto _orb = cv::ORB::create(1000, 1.2f, 8, 31, 0, 4, cv::ORB::HARRIS_SCORE, 31, 20);
-    _orb->detectAndCompute(_img1, mask, kps1, desc1);
-    _orb->detectAndCompute(_img2, mask, kps2, desc2);
-
-    // auto _orb = cv::ORB::create(1000, 1.2f, 8, 31, 0, 4, cv::ORB::HARRIS_SCORE, 31, 20);
-    // kps1 = detect_orb_by_region(_img1, 1000);
-    // kps2 = detect_orb_by_region(_img2, 1000);
-    // _orb->compute(_img1, kps1, desc1);
-    // _orb->compute(_img2, kps2, desc2);
+    _orb->detectAndCompute(img1, mask, kps1, desc1);
+    _orb->detectAndCompute(img2, mask, kps2, desc2);
 
     if (desc1.empty() || desc2.empty()) {
         return;
@@ -389,12 +446,15 @@ void StereoOnlineCalib::find_corresponding_pts(cv::cuda::GpuMat & img1, cv::cuda
 
     double thres = 0.05;
     
-    // matches = filter_by_x(matches, kps2, kps1, thres);
-    // matches = filter_by_y(matches, kps2, kps1, thres);
+    matches = filter_by_E(matches, kps2, kps1, cameraMatrix, E_eig);*/
 
-    matches = filter_by_E(matches, kps2, kps1, cameraMatrix, E_eig);
+    extractor_img_desc_deepnet(img1, kps1, desc1);
+    extractor_img_desc_deepnet(img2, kps2, desc2);
+    cv::BFMatcher bfmatcher(cv::NORM_L2, true);
+    std::vector<cv::DMatch> matches;
+    bfmatcher.match(desc2, desc1, matches);
 
-    vector<cv::Point2f> _pts1, _pts2;
+
     vector<uchar> status;
     for (auto gm : matches) {
         auto _id1 = gm.trainIdx;
@@ -403,41 +463,40 @@ void StereoOnlineCalib::find_corresponding_pts(cv::cuda::GpuMat & img1, cv::cuda
         _pts2.push_back(kps2[_id2].pt);
     }
 
-    ROS_INFO("BRIEF MATCH cost %fms", tic.toc());
+    // ROS_INFO("BRIEF MATCH cost %fms", tic.toc());
 
-
-    for(int i = 0; i < _pts1.size(); i ++) {
-        Pts1.push_back(_pts1[i]);
-        Pts2.push_back(_pts2[i]);
-        good_matches.push_back(matches[i]);
-    }
-
-    // if (_pts1.size() > MINIUM_ESSENTIALMAT_SIZE) {
-    //     cv::findEssentialMat(_pts1, _pts2, cameraMatrix, cv::RANSAC, 0.999, 1.0, status);
-    // }
 
     // for(int i = 0; i < _pts1.size(); i ++) {
-    //     if (i < status.size() && status[i]) {
-    //         Pts1.push_back(_pts1[i]);
-    //         Pts2.push_back(_pts2[i]);
-    //         good_matches.push_back(matches[i]);
-    //     }
+    //     Pts1.push_back(_pts1[i]);
+    //     Pts2.push_back(_pts2[i]);
+    //     good_matches.push_back(matches[i]);
     // }
-    // good_matches = matches;
+
+    if (_pts1.size() > MINIUM_ESSENTIALMAT_SIZE) {
+        cv::findEssentialMat(_pts1, _pts2, cameraMatrix, cv::RANSAC, 0.999, 1.0, status);
+    }
+
+    for(int i = 0; i < _pts1.size(); i ++) {
+        if (i < status.size() && status[i]) {
+            Pts1.push_back(_pts1[i]);
+            Pts2.push_back(_pts2[i]);
+            good_matches.push_back(matches[i]);
+        }
+    }
 
     // ROS_INFO("Total %ld cost %fms Find Essential cost %fms", Pts1.size(), tic.toc(), tic0.toc());
     
-    if (show) {
+    // if (show) 
+    {
         cv::Mat img1_cpu, img2_cpu, _show;
         // img1.download(_img1);
         // img2.download(_img2);
-        cv::drawMatches(_img2, kps2, _img1, kps1, good_matches, _show);
+        cv::drawMatches(img2, kps2, img1, kps1, good_matches, _show);
         // cv::resize(_show, _show, cv::Size(), VISUALIZE_SCALE, VISUALIZE_SCALE);
         cv::imshow("KNNMatch", _show);
         cv::waitKey(2);
     }
 }
-#endif
 
 std::vector<cv::DMatch> filter_by_hamming(const std::vector<cv::DMatch> & matches) {
     std::vector<cv::DMatch> good_matches;
@@ -492,3 +551,44 @@ std::vector<cv::DMatch> filter_by_E(const std::vector<cv::DMatch> & matches,
     return good_matches;
 }
 
+
+
+template <typename T>
+void reduceVector(std::vector<T> &v, std::vector<uchar> status)
+{
+    int j = 0;
+    for (int i = 0; i < int(v.size()); i++)
+        if (status[i])
+            v[j++] = v[i];
+    v.resize(j);
+}
+
+void track_pts(const cv::Mat &img_up, const cv::Mat &img_down, std::vector<cv::Point2f> &pts_up, std::vector<cv::Point2f> &pts_down)
+{
+    std::vector<float> err;
+    std::vector<uchar> status;
+    // std::cout << "DOWN " << img_down.size() << " Up" << img_up.size() << "Pts " << pts_up.size() << std::endl;
+
+    cv::calcOpticalFlowPyrLK(img_up, img_down, pts_up, pts_down, status, err, cv::Size(21, 21), 3);
+    // reduceVector(pts_down, status);
+    // reduceVector(pts_up, status);
+
+    std::vector<cv::Point2f> reverse_pts;
+    std::vector<uchar> reverse_status;
+    cv::calcOpticalFlowPyrLK(img_down, img_up, pts_down, reverse_pts, reverse_status, err, cv::Size(21, 21), 3);
+
+    for (size_t i = 0; i < status.size(); i++)
+    {
+        if (status[i] && reverse_status[i] && cv::norm(pts_up[i] - reverse_pts[i]) <= 0.5)
+        {
+            status[i] = 1;
+        }
+        else
+        {
+            status[i] = 0;
+        }
+    }
+
+    reduceVector(pts_down, status);
+    reduceVector(pts_up, status);
+}
