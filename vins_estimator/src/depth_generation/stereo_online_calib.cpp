@@ -165,6 +165,7 @@ bool StereoOnlineCalib::calibrate_extrinsic_optimize(const std::vector<cv::Point
     stereo_func->Evalute<double>(x.data());
     ceres::Problem problem;
     problem.AddResidualBlock(cost_function, NULL, x.data());
+
     ceres::Solver::Options options;
 
     options.trust_region_strategy_type = ceres::DOGLEG;
@@ -437,109 +438,6 @@ void StereoOnlineCalib::find_corresponding_pts(cv::cuda::GpuMat & img1, cv::cuda
     }
 }
 #endif
-
-std::vector<cv::KeyPoint> StereoOnlineCalib::detect_orb_by_region(cv::Mat & _img, int features, int cols, int rows) {
-    int small_width = _img.cols / cols;
-    int small_height = _img.rows / rows;
-    // printf("Cut to W %d H %d for FAST\n", small_width, small_height);
-    
-    auto _orb = cv::ORB::create(100, 1.2f, 8, 31, 0, 4, cv::ORB::HARRIS_SCORE, 31, 20);
-    std::vector<cv::KeyPoint> ret;
-    for (int i = 0; i < cols; i ++) {
-        for (int j = 0; j < rows; j ++) {
-            std::vector<cv::KeyPoint> kpts;
-            cv::imshow("Rect", _img(cv::Rect(small_width*i, small_width*j, small_width, small_height)));
-            _orb->detect(_img(cv::Rect(small_width*i, small_width*j, small_width, small_height)), kpts);
-            // printf("Detect %ld feature in reigion %d %d\n", kpts.size(), i, j);
-
-            for (auto kp : kpts) {
-                kp.pt.x = kp.pt.x + small_width*i;
-                kp.pt.y = kp.pt.y + small_width*j;
-                ret.push_back(kp);
-            }
-        }
-    }
-
-    return ret;
-}
-
-std::vector<cv::DMatch> filter_by_x(const std::vector<cv::DMatch> & matches, 
-    std::vector<cv::KeyPoint> query_pts, 
-    std::vector<cv::KeyPoint> train_pts, double OUTLIER_XY_PRECENT) {
-    std::vector<cv::DMatch> good_matches;
-    std::vector<float> dxs;
-    for (auto gm : matches) {
-        dxs.push_back(query_pts[gm.queryIdx].pt.x - train_pts[gm.trainIdx].pt.x);
-    }
-
-    std::sort(dxs.begin(), dxs.end());
-
-    int num = dxs.size();
-    int l = num*OUTLIER_XY_PRECENT;
-    if (l == 0) {
-        l = 1;
-    }
-    int r = num*(1-OUTLIER_XY_PRECENT);
-    if (r >= num - 1) {
-        r = num - 2;
-    }
-
-    if (r <= l ) {
-        return good_matches;
-    }
-
-    // printf("MIN DX DIS:%f, l:%f m:%f r:%f END:%f\n", dxs[0], dxs[l], dxs[num/2], dxs[r], dxs[dxs.size() - 1]);
-
-    double lv = dxs[l];
-    double rv = dxs[r];
-
-    for (auto gm: matches) {
-        if (query_pts[gm.queryIdx].pt.x - train_pts[gm.trainIdx].pt.x > lv && query_pts[gm.queryIdx].pt.x - train_pts[gm.trainIdx].pt.x < rv) {
-            good_matches.push_back(gm);
-        }
-    }
-
-    return good_matches;
-}
-
-std::vector<cv::DMatch> filter_by_y(const std::vector<cv::DMatch> & matches, 
-    std::vector<cv::KeyPoint> query_pts, 
-    std::vector<cv::KeyPoint> train_pts, double OUTLIER_XY_PRECENT) {
-    std::vector<cv::DMatch> good_matches;
-    std::vector<float> dys;
-    for (auto gm : matches) {
-        dys.push_back(query_pts[gm.queryIdx].pt.y - train_pts[gm.trainIdx].pt.y);
-    }
-
-    std::sort(dys.begin(), dys.end());
-
-    int num = dys.size();
-    int l = num*OUTLIER_XY_PRECENT;
-    if (l == 0) {
-        l = 1;
-    }
-    int r = num*(1-OUTLIER_XY_PRECENT);
-    if (r >= num - 1) {
-        r = num - 2;
-    }
-
-    if (r <= l ) {
-        return good_matches;
-    }
-
-    // printf("MIN DX DIS:%f, l:%f m:%f r:%f END:%f\n", dys[0], dys[l], dys[num/2], dys[r], dys[dys.size() - 1]);
-
-    double lv = dys[l];
-    double rv = dys[r];
-
-    for (auto gm: matches) {
-        if (query_pts[gm.queryIdx].pt.y - train_pts[gm.trainIdx].pt.y > lv && query_pts[gm.queryIdx].pt.y - train_pts[gm.trainIdx].pt.y < rv) {
-            good_matches.push_back(gm);
-        }
-    }
-
-    return good_matches;
-}
 
 std::vector<cv::DMatch> filter_by_hamming(const std::vector<cv::DMatch> & matches) {
     std::vector<cv::DMatch> good_matches;
