@@ -16,6 +16,9 @@ double GYR_N, GYR_W;
 double THRES_OUTLIER;
 double triangulate_max_err = 0.5;
 
+double IMU_FREQ;
+double IMAGE_FREQ;
+
 std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
 
@@ -147,6 +150,9 @@ void readParameters(std::string config_file)
     enable_rear_side = fsSettings["enable_rear_side"];
     depth_estimate_baseline = fsSettings["depth_estimate_baseline"];
     ENABLE_PERF_OUTPUT = fsSettings["enable_perf_output"];
+
+    IMU_FREQ = fsSettings["imu_freq"];
+    IMAGE_FREQ = fsSettings["image_freq"];
 
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);
