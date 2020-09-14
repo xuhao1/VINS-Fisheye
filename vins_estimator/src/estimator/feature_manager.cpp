@@ -365,7 +365,7 @@ void FeatureManager::initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs
                     cv::Point3f point3d(ptsInWorld.x(), ptsInWorld.y(), ptsInWorld.z());
                     //Because PnP require 2d points; We hack here to use only z > 1 unit sphere point to init pnp
                     Eigen::Vector3d pt = it_per_id.feature_per_frame[index].point;
-                    if (pt.z() > 0.1) {
+                    if (pt.z() > 0.01) {
                         cv::Point2f point2d(pt.x()/pt.z(), pt.y()/pt.z());
                         pts3D.push_back(point3d);
                         pts2D.push_back(point2d);                         

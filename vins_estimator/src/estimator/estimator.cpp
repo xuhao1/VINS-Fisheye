@@ -139,29 +139,26 @@ double base = 0;
 
 void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vector3d &angularVelocity)
 {
+    double dt_device = t - ros::Time::now().toSec();
     mBuf.lock();
-    double dt = t - latest_time;
-    if (dt > (1.5/IMU_FREQ)) {
-        ROS_ERROR("IMU sample duration too high %4.2fms in Input IMU. Check your IMU and system performance", dt*1000);
-    }
+
     accBuf.push(make_pair(t, linearAcceleration));
     gyrBuf.push(make_pair(t, angularVelocity));
 
-    fastPredictIMU(t, linearAcceleration, angularVelocity);
-    // if (solver_flag == NON_LINEAR && fast_prop_inited) {
     if (fast_prop_inited) {
-    //if (fast_prop_inited) {
-        if (solver_flag !=  NON_LINEAR) {
-            std::cerr<< "Is not non linear!!!!" << std::endl;
-            exit(-1);
+        double dt = t - latest_time;
+        if (dt > (1.5/IMU_FREQ) || dt < (0.7/IMU_FREQ)) {
+            ROS_WARN("[inputIMU] IMU sample duration not stable %4.2fms. Check your IMU and system performance", dt*1000);
         }
+
+        fastPredictIMU(t, linearAcceleration, angularVelocity);
         pubLatestOdometry(latest_P, latest_Q, latest_V, t);
-    }
-    
-    static int count = 0;
-    if (count++ % IMU_FREQ == 0) {
-        double imu_propagate_dt = t - (Headers[frame_count] + td);
-        ROS_INFO("IMU Propagate dt %4.1f ms", imu_propagate_dt*1000);
+
+        // static int count = 0;
+        // if (count++ % (int)(2*IMU_FREQ/IMAGE_FREQ) == 0) {
+        //     double imu_propagate_dt = t - (Headers[frame_count] + td);
+        //     printf("[inputIMU] IMU Propagate dt %4.1f ms Device dt %3.1fms", imu_propagate_dt*1000, dt_device*1000);
+        // }
     }
 
     mBuf.unlock();
@@ -1819,7 +1816,7 @@ void Estimator::fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Ei
 
     double dt = t - latest_time;
     if (dt > (1.5/IMU_FREQ)) {
-        ROS_ERROR("FastPredictIMU dt %4.1fms t %f lt %f", dt*1000, (t-base)*1000, (latest_time-base)*1000);
+        ROS_ERROR("[FastPredictIMU] dt %4.1fms t %f lt %f", dt*1000, (t-base)*1000, (latest_time-base)*1000);
     }
 
     latest_time = t;
@@ -1855,10 +1852,8 @@ void Estimator::updateLatestStates()
 
     double re_propagate_dt = accBuf.back().first - latest_time;
 
-    if (re_propagate_dt > 1.0/IMAGE_FREQ) {
-        ROS_WARN(" Reprogate dt too high %4.1fms ", re_propagate_dt*1000);
-    } else {
-        printf(" Reprogate dt too high %4.1fms ", re_propagate_dt*1000);
+    if (re_propagate_dt > 3.0/IMAGE_FREQ) {
+        ROS_WARN("[updateLatestStates] Reprogate dt too high %4.1fms ", re_propagate_dt*1000);
     }
 
     while(!tmp_accBuf.empty())
@@ -1868,7 +1863,7 @@ void Estimator::updateLatestStates()
         Eigen::Vector3d gyr = tmp_gyrBuf.front().second;
         double dt = t - latest_time;
         if (dt > 1.5/IMU_FREQ) {
-            ROS_ERROR("IMU sample duration too high %4.2fms in repropagate. Check your IMU and system performance", dt*1000);
+            ROS_ERROR("[updateLatestStates]IMU sample duration too high %4.2fms. Check your IMU and system performance", dt*1000);
             // exit(-1);
         }
         
