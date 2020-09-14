@@ -147,7 +147,7 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
 
     if (fast_prop_inited) {
         double dt = t - latest_time;
-        if (dt > (1.5/IMU_FREQ) || dt < (0.7/IMU_FREQ)) {
+        if (dt > (1.5/IMU_FREQ) || dt < (0.5/IMU_FREQ)) {
             ROS_WARN("[inputIMU] IMU sample duration not stable %4.2fms. Check your IMU and system performance", dt*1000);
         }
 
