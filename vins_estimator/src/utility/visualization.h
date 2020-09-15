@@ -35,6 +35,7 @@ extern ros::Publisher pub_cloud, pub_map;
 extern ros::Publisher pub_key_poses;
 extern ros::Publisher pub_ref_pose, pub_cur_pose;
 extern ros::Publisher pub_key;
+extern ros::Publisher pub_bias;
 extern nav_msgs::Path path;
 extern ros::Publisher pub_pose_graph;
 extern int IMAGE_ROW, IMAGE_COL;
@@ -42,6 +43,8 @@ extern int IMAGE_ROW, IMAGE_COL;
 void registerPub(ros::NodeHandle &n);
 
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t);
+
+void pubIMUBias(const Eigen::Vector3d &Ba, const Eigen::Vector3d Bg, const std_msgs::Header &header);
 
 void printStatistics(const Estimator &estimator, double t);
 
@@ -58,10 +61,6 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header);
 void pubTF(const Estimator &estimator, const std_msgs::Header &header);
 
 void pubKeyframe(const Estimator &estimator);
-
-void pubRelocalization(const Estimator &estimator);
-
-void pubCar(const Estimator & estimator, const std_msgs::Header &header);
 
 void pubFlattenImages(const Estimator &estimator, const std_msgs::Header &header, 
     const Eigen::Vector3d & P, const Eigen::Quaterniond & Q, 

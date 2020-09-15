@@ -392,7 +392,7 @@ void Estimator::processMeasurements()
             header.frame_id = "world";
             header.stamp = ros::Time(feature.first);
 
-
+            pubIMUBias(latest_Ba, latest_Bg, header);
             //These cost 5ms, ~1/6 percent on manifold2
             pubOdometry(*this, header);
             pubKeyPoses(*this, header);

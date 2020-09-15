@@ -32,6 +32,7 @@ ros::Publisher pub_keyframe_point;
 ros::Publisher pub_extrinsic;
 ros::Publisher pub_viokeyframe;
 ros::Publisher pub_viononkeyframe;
+ros::Publisher pub_bias;
 
 CameraPoseVisualization cameraposevisual(1, 0, 0, 1);
 static double sum_of_path = 0;
@@ -58,12 +59,26 @@ void registerPub(ros::NodeHandle &n)
     pub_viokeyframe = n.advertise<vins::VIOKeyframe>("viokeyframe", 1000);
     pub_viononkeyframe = n.advertise<vins::VIOKeyframe>("viononkeyframe", 1000);
     pub_flatten_images = n.advertise<vins::FlattenImages>("flatten_images", 1000);
+    pub_bias = n.advertise<sensor_msgs::Imu>("imu_bias", 1000);
 
     cameraposevisual.setScale(0.1);
     cameraposevisual.setLineWidth(0.01);
 }
 
 
+void pubIMUBias(const Eigen::Vector3d &Ba, const Eigen::Vector3d Bg, const std_msgs::Header &header) {
+    sensor_msgs::Imu bias;
+    bias.header = header;
+    bias.linear_acceleration.x = Ba.x();
+    bias.linear_acceleration.y = Ba.y();
+    bias.linear_acceleration.z = Ba.z();
+
+    bias.angular_velocity.x = Ba.x();
+    bias.angular_velocity.y = Ba.y();
+    bias.angular_velocity.z = Ba.z();
+
+    pub_bias.publish(bias);
+}
 
 void pubFlattenImages(const Estimator &estimator, const std_msgs::Header &header, 
     const Eigen::Vector3d & P, const Eigen::Quaterniond & Q, 
