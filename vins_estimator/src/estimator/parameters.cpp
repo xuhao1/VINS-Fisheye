@@ -75,6 +75,9 @@ double F_THRESHOLD;
 int SHOW_TRACK;
 int FLOW_BACK;
 
+int WARN_IMU_DURATION;
+int PUB_FLATTEN;
+
 std::string configPath;
 
 template <typename T>
@@ -122,10 +125,8 @@ void readParameters(std::string config_file)
     SIDE_PTS_CNT = fsSettings["side_cnt"];
     MAX_SOLVE_CNT = fsSettings["max_solve_cnt"];
     MIN_DIST = fsSettings["min_dist"];
-
     USE_ORB = fsSettings["use_orb"];
 
-    F_THRESHOLD = fsSettings["F_threshold"];
     SHOW_TRACK = fsSettings["show_track"];
     FLOW_BACK = fsSettings["flow_back"];
     RGB_DEPTH_CLOUD = fsSettings["rgb_depth_cloud"];
@@ -153,6 +154,8 @@ void readParameters(std::string config_file)
 
     IMU_FREQ = fsSettings["imu_freq"];
     IMAGE_FREQ = fsSettings["image_freq"];
+    WARN_IMU_DURATION = fsSettings["warn_imu_duration"];
+    PUB_FLATTEN = fsSettings["pub_flatten"];
 
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);

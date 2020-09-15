@@ -428,7 +428,9 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> (*image_sub_l, *image_sub_r, 1000);
 
     timer1 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::processFlattened, (VinsNodeBaseClass*)this, _1 ));
-    timer2 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::pack_and_send_thread, (VinsNodeBaseClass*)this, _1 ));
+    if (PUB_FLATTEN) {
+        timer2 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::pack_and_send_thread, (VinsNodeBaseClass*)this, _1 ));
+    }
     
     if (FISHEYE) {
         sync->registerCallback(boost::bind(&VinsNodeBaseClass::fisheye_imgs_callback, (VinsNodeBaseClass*)this, _1, _2));

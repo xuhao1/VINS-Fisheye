@@ -147,7 +147,7 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
 
     if (fast_prop_inited) {
         double dt = t - latest_time;
-        if (dt > (1.5/IMU_FREQ) || dt < (0.5/IMU_FREQ)) {
+        if (WARN_IMU_DURATION && (dt > (1.5/IMU_FREQ) || dt < (0.5/IMU_FREQ))) {
             ROS_WARN("[inputIMU] IMU sample duration not stable %4.2fms. Check your IMU and system performance", dt*1000);
         }
 
@@ -1815,7 +1815,7 @@ void Estimator::fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Ei
     }
 
     double dt = t - latest_time;
-    if (dt > (1.5/IMU_FREQ)) {
+    if (WARN_IMU_DURATION && dt > (1.5/IMU_FREQ)) {
         ROS_ERROR("[FastPredictIMU] dt %4.1fms t %f lt %f", dt*1000, (t-base)*1000, (latest_time-base)*1000);
     }
 
@@ -1862,7 +1862,7 @@ void Estimator::updateLatestStates()
         Eigen::Vector3d acc = tmp_accBuf.front().second;
         Eigen::Vector3d gyr = tmp_gyrBuf.front().second;
         double dt = t - latest_time;
-        if (dt > 1.5/IMU_FREQ) {
+        if (WARN_IMU_DURATION && dt > 1.5/IMU_FREQ) {
             ROS_ERROR("[updateLatestStates]IMU sample duration too high %4.2fms. Check your IMU and system performance", dt*1000);
             // exit(-1);
         }

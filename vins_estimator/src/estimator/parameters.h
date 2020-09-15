@@ -88,12 +88,14 @@ extern int SIDE_PTS_CNT;
 extern int MAX_SOLVE_CNT;
 
 extern int MIN_DIST;
-extern double F_THRESHOLD;
 extern int SHOW_TRACK;
 extern int FLOW_BACK;
 
 extern double IMU_FREQ;
 extern double IMAGE_FREQ;
+
+extern int WARN_IMU_DURATION;
+extern int PUB_FLATTEN;
 
 void readParameters(std::string config_file);
 
