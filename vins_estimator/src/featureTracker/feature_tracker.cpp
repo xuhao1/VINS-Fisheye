@@ -152,7 +152,7 @@ void FeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, vect
         cv::circle(img, pts[j], 1, color, 2);
 
         sprintf(idtext, "%d", ids[j]);
-	    cv::putText(img, idtext, pts[j] - cv::Point2f(5, 0), cv::FONT_HERSHEY_SIMPLEX, 1, color, 3);
+	    cv::putText(img, idtext, pts[j] - cv::Point2f(5, 0), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
 
     }
 
@@ -903,7 +903,7 @@ void FeatureTracker::readIntrinsicParameter(const vector<string> &calib_file)
 
         if (FISHEYE) {
             ROS_INFO("Use as fisheye %s", calib_file[i].c_str());
-            FisheyeUndist un(calib_file[i].c_str(), i, FISHEYE_FOV, true, COL);
+            FisheyeUndist un(calib_file[i].c_str(), i, FISHEYE_FOV, true, WIDTH);
             fisheys_undists.push_back(un);
         }
 

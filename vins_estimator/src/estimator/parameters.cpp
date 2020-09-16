@@ -35,7 +35,7 @@ std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
 std::string OUTPUT_FOLDER;
 std::string IMU_TOPIC;
-int ROW, COL;
+int ROW, WIDTH;
 int SHOW_WIDTH;
 double TD;
 int NUM_OF_CAM;
@@ -263,9 +263,9 @@ void readParameters(std::string config_file)
         ROS_INFO_STREAM("Synchronized sensors, fix time offset: " << TD);
 
     ROW = fsSettings["image_height"];
-    COL = fsSettings["image_width"];
+    WIDTH = fsSettings["image_width"];
     SHOW_WIDTH = fsSettings["show_width"];
-    ROS_INFO("ROW: %d COL: %d ", ROW, COL);
+    ROS_INFO("ROW: %d COL: %d ", ROW, WIDTH);
 
     if(!USE_IMU)
     {

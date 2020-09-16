@@ -53,7 +53,7 @@ extern double TD;
 extern double depth_estimate_baseline;
 extern int ESTIMATE_TD;
 extern int ROLLING_SHUTTER;
-extern int ROW, COL;
+extern int ROW, WIDTH;
 extern int SHOW_WIDTH;
 extern int NUM_OF_CAM;
 extern int STEREO;

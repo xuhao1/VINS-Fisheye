@@ -249,7 +249,7 @@ void FisheyeFlattenHandler::readIntrinsicParameter(const vector<string> &calib_f
     {
         if (FISHEYE) {
             ROS_INFO("Flatten read fisheye %s, id %ld", calib_file[i].c_str(), i);
-            FisheyeUndist un(calib_file[i].c_str(), i, FISHEYE_FOV, true, COL);
+            FisheyeUndist un(calib_file[i].c_str(), i, FISHEYE_FOV, true, WIDTH);
             fisheys_undists.push_back(un);
         }
     }

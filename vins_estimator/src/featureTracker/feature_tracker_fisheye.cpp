@@ -14,21 +14,21 @@ Eigen::Quaterniond t_down(Eigen::AngleAxisd(M_PI, Eigen::Vector3d(1, 0, 0)));
 void FeatureTracker::addPointsFisheye()
 {
     // ROS_INFO("Up top new pts %d", n_pts_up_top.size());
-    for (auto &p : n_pts_up_top)
+    for (auto p : n_pts_up_top)
     {
         cur_up_top_pts.push_back(p);
         ids_up_top.push_back(n_id++);
         track_up_top_cnt.push_back(1);
     }
 
-    for (auto &p : n_pts_down_top)
+    for (auto p : n_pts_down_top)
     {
         cur_down_top_pts.push_back(p);
         ids_down_top.push_back(n_id++);
         track_down_top_cnt.push_back(1);
     }
 
-    for (auto &p : n_pts_up_side)
+    for (auto p : n_pts_up_side)
     {
         cur_up_side_pts.push_back(p);
         ids_up_side.push_back(n_id++);
@@ -119,7 +119,19 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
     cv::Mat fisheye_down;
     
     int side_height = imUpSide.size().height;
-    int width = imUpTop.size().width;
+
+    int cnt = 0;
+
+    if (imUpTop.size().width == 0) {
+        imUpTop = cv::Mat(cv::Size(WIDTH, WIDTH), CV_8UC3, cv::Scalar(0, 0, 0));
+        cnt ++; 
+    }
+
+    if (imDownTop.size().width == 0) {
+        imDownTop = cv::Mat(cv::Size(WIDTH, WIDTH), CV_8UC3, cv::Scalar(0, 0, 0)); 
+        cnt ++; 
+    }
+
     //128
     if (img_up.size().width == 1024) {
         fisheye_up = img_up(cv::Rect(190, 62, 900, 900));
@@ -127,10 +139,11 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
     } else {
         fisheye_up = cv::Mat(cv::Size(900, 900), CV_8UC3, cv::Scalar(0, 0, 0)); 
         fisheye_down = cv::Mat(cv::Size(900, 900), CV_8UC3, cv::Scalar(0, 0, 0)); 
+        cnt ++; 
     }
 
-    cv::resize(fisheye_up, fisheye_up, cv::Size(width, width));
-    cv::resize(fisheye_down, fisheye_down, cv::Size(width, width));
+    cv::resize(fisheye_up, fisheye_up, cv::Size(WIDTH, WIDTH));
+    cv::resize(fisheye_down, fisheye_down, cv::Size(WIDTH, WIDTH));
     if (fisheye_up.channels() != 3) {
         cv::cvtColor(fisheye_up,   fisheye_up,   cv::COLOR_GRAY2BGR);
         cv::cvtColor(fisheye_down, fisheye_down, cv::COLOR_GRAY2BGR);
@@ -140,15 +153,21 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
         if (!imUpTop.empty()) {
             cv::cvtColor(imUpTop, imUpTop, cv::COLOR_GRAY2BGR);
         }
+    }
     
+    if (imDownTop.channels() != 3) {
         if(!imDownTop.empty()) {
             cv::cvtColor(imDownTop, imDownTop, cv::COLOR_GRAY2BGR);
         }
-        
+    }
+    
+    if(imUpSide.channels() != 3) {
         if(!imUpSide.empty()) {
             cv::cvtColor(imUpSide, imUpSide, cv::COLOR_GRAY2BGR);
         }
+    }
 
+    if(imDownSide.channels() != 3) {
         if(!imDownSide.empty()) {
             cv::cvtColor(imDownSide, imDownSide, cv::COLOR_GRAY2BGR);
         }
@@ -177,8 +196,8 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
     }
 
     for (int i = 1; i < side_count + 1; i ++) {
-        cv::line(imUpSide, cv::Point2d(i*width, 0), cv::Point2d(i*width, side_height), cv::Scalar(255, 0, 0), 1);
-        cv::line(imDownSide, cv::Point2d(i*width, 0), cv::Point2d(i*width, side_height), cv::Scalar(255, 0, 0), 1);
+        cv::line(imUpSide, cv::Point2d(i*WIDTH, 0), cv::Point2d(i*WIDTH, side_height), cv::Scalar(255, 0, 0), 1);
+        cv::line(imDownSide, cv::Point2d(i*WIDTH, 0), cv::Point2d(i*WIDTH, side_height), cv::Scalar(255, 0, 0), 1);
     }
 
     cv::vconcat(imUpSide, imDownSide, imTrack);
@@ -192,7 +211,9 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
     // ROS_INFO("Imtrack width %d", imUpSide.size().width);
     cv::resize(top_cam, top_cam, cv::Size(imUpSide.size().width, imUpSide.size().width/4));
     
-    cv::vconcat(top_cam, imTrack, imTrack);
+    if (cnt < 3) {
+        cv::vconcat(top_cam, imTrack, imTrack);
+    }
     
     double fx = ((double)SHOW_WIDTH) / ((double) imUpSide.size().width);
     cv::resize(imTrack, imTrack, cv::Size(), fx, fx);
@@ -454,18 +475,13 @@ vector<cv::Point3f> FeatureTracker::undistortedPtsSide(vector<cv::Point2f> &pts,
     {
         Eigen::Vector2d a(pts[i].x, pts[i].y);
         Eigen::Vector3d b;
-        if(ENABLE_DOWNSAMPLE) {
-            a = a*2;
-        }
+        
+        int side_pos_id = floor(a.x() / WIDTH) + 1;
 
-        int side_pos_id = floor(a.x() / top_size.width) + 1;
-
-        a.x() = a.x() - floor(a.x() / top_size.width)*top_size.width;
+        a.x() = a.x() - floor(a.x() / WIDTH)*WIDTH;
 
         cam->liftProjective(a, b);
 
-        // ROS_INFO("Pts x is %f, is at %d direction width %d", a.x(), side_pos_id, top_size.width);
-        
         if (side_pos_id == 1) {
             b = t1 * b;
         } else if(side_pos_id == 2) {
@@ -475,8 +491,8 @@ vector<cv::Point3f> FeatureTracker::undistortedPtsSide(vector<cv::Point2f> &pts,
         } else if (side_pos_id == 4) {
             b = t4 * b;
         } else {
-            ROS_ERROR("Err pts img pos id %d!! x %f width %d", side_pos_id, a.x(), top_size.width);
-            exit(-1);
+            ROS_ERROR("Err pts img position; i %d side_pos_id %d!! x %f width %d", i, side_pos_id, a.x(), top_size.width);
+            assert(false &&"ERROR Pts img position");
         }
 
         if (is_downward) {
