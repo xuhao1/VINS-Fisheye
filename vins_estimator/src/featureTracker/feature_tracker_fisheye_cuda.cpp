@@ -176,24 +176,29 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
     cv::cuda::GpuMat prev_gpu_pts(prev_pts);
     cv::cuda::GpuMat cur_gpu_pts(cur_pts);
     cv::cuda::GpuMat gpu_status;
+    cv::cuda::GpuMat gpu_err;
+
+    vector<float> err;
     status.clear();
 
     //Assume No Prediction Need to add later
     cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
         cv::Size(21, 21), 3, 30, false);
 
-    d_pyrLK_sparse->calc(prev_pyr, cur_pyr, prev_gpu_pts, cur_gpu_pts, gpu_status);
+    d_pyrLK_sparse->calc(prev_pyr, cur_pyr, prev_gpu_pts, cur_gpu_pts, gpu_status, gpu_err);
     
     cur_gpu_pts.download(cur_pts);
+    gpu_err.download(err);
 
     gpu_status.download(status);
+
     if(FLOW_BACK)
     {
         // ROS_INFO("Is flow back");
         cv::cuda::GpuMat reverse_gpu_status;
         cv::cuda::GpuMat reverse_gpu_pts = prev_gpu_pts;
         cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-        cv::Size(21, 21), 1, 30, true);
+            cv::Size(21, 21), 3, 30, true);
         d_pyrLK_sparse->calc(cur_pyr, prev_pyr, cur_gpu_pts, reverse_gpu_pts, reverse_gpu_status);
 
         vector<cv::Point2f> reverse_pts(reverse_gpu_pts.cols);
