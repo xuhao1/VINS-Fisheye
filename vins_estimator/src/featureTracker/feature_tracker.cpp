@@ -161,7 +161,7 @@ void FeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, vect
         int id = ids[i];
         auto mapIt = prev_pts.find(id);
         if(mapIt != prev_pts.end()) {
-            cv::arrowedLine(img, pts[i], mapIt->second, cv::Scalar(0, 255, 0), 1, 8, 0, 0.2);
+            cv::arrowedLine(img, mapIt->second, pts[i], cv::Scalar(0, 255, 0), 1, 8, 0, 0.2);
         }
     }
 }

@@ -107,7 +107,6 @@ class VinsNodeBaseClass {
         double t_last = 0;
 
         double last_time;
-        bool last_time_initialized;
 
 
         double t_last_send = 0;

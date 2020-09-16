@@ -351,23 +351,6 @@ void VinsNodeBaseClass::imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     Vector3d acc(dx, dy, dz);
     Vector3d gyr(rx, ry, rz);
     estimator.inputIMU(t, acc, gyr);
-
-    // test, should be deleted
-    if (! last_time_initialized)
-    {
-        last_time = ros::Time::now().toSec();
-        last_time_initialized = true;
-    }
-    else
-    {
-        double now_time = ros::Time::now().toSec();
-        if (now_time - last_time > 3) {
-            std::cerr << "IMU DT too big, shuting ros down" << std::endl;
-            ros::shutdown();
-        }
-        last_time = now_time;
-    }
-    // test end
 }
 
 void VinsNodeBaseClass::restart_callback(const std_msgs::BoolConstPtr &restart_msg)
