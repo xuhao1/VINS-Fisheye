@@ -61,6 +61,10 @@ class FisheyeFlattenHandler
 
         std::queue<CvCudaImages> fisheye_cuda_buf_up, fisheye_cuda_buf_down;
         std::queue<CvCudaImages> fisheye_cuda_buf_up_color, fisheye_cuda_buf_down_color;
+
+        std::queue<CvImages> fisheye_buf_up, fisheye_buf_down;
+        std::queue<CvImages> fisheye_buf_up_color, fisheye_buf_down_color;
+
         std::queue<double> fisheye_cuda_buf_t;
         //Only gray image will be saved in buf now
 
@@ -68,6 +72,8 @@ class FisheyeFlattenHandler
         CvCudaImages fisheye_up_imgs_cuda_gray, fisheye_down_imgs_cuda_gray;
         
         CvImages fisheye_up_imgs, fisheye_down_imgs;
+        CvImages fisheye_up_imgs_gray, fisheye_down_imgs_gray;
+
         
         FisheyeFlattenHandler(ros::NodeHandle & n);
 

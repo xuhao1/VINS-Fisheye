@@ -58,7 +58,7 @@ class Estimator
 
     bool is_next_odometry_frame();
     void inputFisheyeImage(double t, const CvCudaImages & up_imgs, const CvCudaImages & down_imgs, bool is_blank_init = false);
-
+    void inputFisheyeImage(double t, const CvImages & fisheye_imgs_up, const CvImages & fisheye_imgs_down);
     void processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const FeatureFrame &image, const double header);
     void processMeasurements();

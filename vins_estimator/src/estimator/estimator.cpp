@@ -92,6 +92,45 @@ bool Estimator::is_next_odometry_frame() {
     return (inputImageCnt % 2 == 1);
 }
 
+
+void Estimator::inputFisheyeImage(double t, const CvImages & fisheye_imgs_up, 
+        const CvImages & fisheye_imgs_down)
+{
+    static int img_track_count = 0;
+    static double sum_time = 0;
+    inputImageCnt++;
+    
+    FeatureFrame featureFrame;
+    TicToc featureTrackerTime;
+
+    featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up, fisheye_imgs_down);
+
+    if(inputImageCnt % 2 == 0)
+    {
+        mBuf.lock();
+        featureBuf.push(make_pair(t, featureFrame));
+        if (FISHEYE && ENABLE_DEPTH) {
+            fisheye_imgs_upBuf.push(fisheye_imgs_up);
+            fisheye_imgs_downBuf.push(fisheye_imgs_down);
+            fisheye_imgs_stampBuf.push(t);
+        }
+        mBuf.unlock();
+    }
+
+    double dt = featureTrackerTime.toc();
+
+    if (inputImageCnt > 100) {
+        sum_time += dt;
+        img_track_count ++;
+    }
+
+    if(ENABLE_PERF_OUTPUT) {
+        printf("featureTracker time: AVG %f NOW %f inputImageCnt %d Bufsize %ld imgs buf Size %ld\n", 
+            sum_time/img_track_count, dt, inputImageCnt, featureBuf.size(), fisheye_imgs_upBuf_cuda.size());
+    }
+   
+}
+
 void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up_cuda, 
         const CvCudaImages & fisheye_imgs_down_cuda, bool is_blank_init)
 {

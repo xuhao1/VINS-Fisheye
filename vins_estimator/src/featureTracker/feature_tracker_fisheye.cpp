@@ -221,6 +221,56 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
     cv::waitKey(2);
 }
 
+
+void FeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, vector<int> ids, map<int, cv::Point2f> prev_pts) {
+    char idtext[10] = {0};
+    for (size_t j = 0; j < pts.size(); j++) {
+        //Not tri
+        //Not solving
+        //Just New point yellow
+        cv::Scalar color = cv::Scalar(0, 255, 255);
+        if (pts_status.find(ids[j]) != pts_status.end()) {
+            int status = pts_status[ids[j]];
+            if (status < 0) {
+                //Removed points
+                color = cv::Scalar(0, 0, 0);
+            }
+
+            if (status == 1) {
+                //Good pt; But not used for solving; Blue 
+                color = cv::Scalar(255, 0, 0);
+            }
+
+            if (status == 2) {
+                //Bad pt; Red
+                color = cv::Scalar(0, 0, 255);
+            }
+
+            if (status == 3) {
+                //Good pt for solving; Green
+                color = cv::Scalar(0, 255, 0);
+            }
+
+        }
+
+        cv::circle(img, pts[j], 1, color, 2);
+
+        sprintf(idtext, "%d", ids[j]);
+	    cv::putText(img, idtext, pts[j] - cv::Point2f(5, 0), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
+
+    }
+
+    for (size_t i = 0; i < ids.size(); i++)
+    {
+        int id = ids[i];
+        auto mapIt = prev_pts.find(id);
+        if(mapIt != prev_pts.end()) {
+            cv::arrowedLine(img, mapIt->second, pts[i], cv::Scalar(0, 255, 0), 1, 8, 0, 0.2);
+        }
+    }
+}
+
+
 FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time, const std::vector<cv::Mat> & fisheye_imgs_up, const std::vector<cv::Mat> & fisheye_imgs_down) {
     // ROS_INFO("tracking fisheye cpu %ld:%ld", fisheye_imgs_up.size(), fisheye_imgs_down.size());
     cur_time = _cur_time;
