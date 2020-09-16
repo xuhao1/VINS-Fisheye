@@ -161,7 +161,10 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
     reduceVector(prev_pts, status);
     reduceVector(cur_pts, status);
     reduceVector(ids, status);
-    
+    if(track_cnt.size() > 0) {
+        reduceVector(track_cnt, status);
+    }
+
     if (prev_pts.size() == 0) {
         if (!is_lr_track)
             prev_pyr = cur_pyr;
@@ -181,8 +184,6 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img
 
     d_pyrLK_sparse->calc(prev_pyr, cur_pyr, prev_gpu_pts, cur_gpu_pts, gpu_status);
     
-    // std::cout << "Prev gpu pts" << prev_gpu_pts.size() << std::endl;    
-    // std::cout << "Cur gpu pts" << cur_gpu_pts.size() << std::endl;
     cur_gpu_pts.download(cur_pts);
 
     gpu_status.download(status);

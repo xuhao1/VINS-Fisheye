@@ -186,7 +186,7 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
     }
 
     if(enable_down_side) {
-        drawTrackImage(imDownSide, cur_down_side_pts, ids_down_side, down_side_prevLeftPtsMap);
+        drawTrackImage(imDownSide, cur_down_side_pts, ids_down_side, pts_map(ids_up_side, cur_up_side_pts));
     }
 
     //Show images
