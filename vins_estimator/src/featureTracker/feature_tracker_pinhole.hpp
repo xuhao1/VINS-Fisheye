@@ -4,18 +4,20 @@ namespace FeatureTracker {
 
 template<class CvMat>
 class PinholeFeatureTracker: public BaseFeatureTracker {
-    cv::Mat mask;
-
 public:
     virtual FeatureFrame trackImage(double _cur_time, cv::InputArray _img, 
-        cv::InputArray _img1 = cv::noArray()) override
+        cv::InputArray _img1 = cv::noArray()) override;
+
+    virtual void readIntrinsicParameter(const vector<string> &calib_file) override;
 
 protected:
+    cv::Mat mask;
+    cv::Mat imTrack;
+    int width, height;
     bool inBorder(const cv::Point2f &pt) const;
     bool inBorder(const cv::Point2f &pt, cv::Size shape) const;
     void setMask();
     void addPoints();
-    virtual void readIntrinsicParameter(const vector<string> &calib_file) override;
     vector<cv::Point2f> ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 
                                     map<int, cv::Point2f> &cur_id_pts, map<int, cv::Point2f> &prev_id_pts);
     vector<cv::Point2f> undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam);
@@ -29,6 +31,8 @@ protected:
                     vector<cv::Point2f> &curRightPts,
                     map<int, cv::Point2f> &prevLeftPtsMap);
 
+    virtual void setPrediction(map<int, Eigen::Vector3d> &predictPts) override;
+
     vector<cv::Point2f> n_pts;
     CvMat prev_img, cur_img;
     vector<cv::Point2f> predict_pts;
@@ -41,9 +45,5 @@ protected:
     map<int, cv::Point2f> cur_un_pts_map, prev_un_pts_map;
     map<int, cv::Point2f> cur_un_right_pts_map, prev_un_right_pts_map;
     map<int, cv::Point2f> prevLeftPtsMap;
-    vector<camodocal::CameraPtr> m_camera;
-
-    virtual void removeOutliers(set<int> &removePtsIds);
-
 };
 }

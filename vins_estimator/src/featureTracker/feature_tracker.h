@@ -56,10 +56,18 @@ public:
         estimator(_estimator)
     {
     }
-    void setPrediction(map<int, Eigen::Vector3d> &predictPts);
+    virtual void setPrediction(map<int, Eigen::Vector3d> &predictPts) = 0;
     virtual FeatureFrame trackImage(double _cur_time, cv::InputArray _img, 
         cv::InputArray _img1 = cv::noArray()) = 0;
-    virtual void removeOutliers(set<int> &removePtsIds) = 0;
+    
+    void setFeatureStatus(int feature_id, int status) {
+        this->pts_status[feature_id] = status;
+        if (status < 0) {
+            removed_pts.insert(feature_id);
+        }
+    }
+
+    virtual void readIntrinsicParameter(const vector<string> &calib_file) = 0;
 
 protected:
     bool hasPrediction = false;
@@ -70,30 +78,20 @@ protected:
     int height, width;
 
     Estimator * estimator = nullptr;
-    virtual void readIntrinsicParameter(const vector<string> &calib_file) = 0;
     
     void setup_feature_frame(FeatureFrame & ff, vector<int> ids, vector<cv::Point2f> cur_pts, vector<cv::Point3f> cur_un_pts, vector<cv::Point3f> cur_pts_vel, int camera_id);
-    FeatureFrame setup_feature_frame();
+    virtual FeatureFrame setup_feature_frame() = 0;
 
     void drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, vector<int> ids, map<int, cv::Point2f> prev_pts);
 
-
-    virtual void detectPoints(cv::InputArray img, cv::InputArray mask, vector<cv::Point2f> & n_pts, 
-        vector<cv::Point2f> & cur_pts, int require_pts) = 0;
-    
     map<int, int> pts_status;
     set<int> removed_pts;
 
-    void setFeatureStatus(int feature_id, int status) {
-        this->pts_status[feature_id] = status;
-        if (status < 0) {
-            removed_pts.insert(feature_id);
-        }
-    }
+    vector<camodocal::CameraPtr> m_camera;
 
     bool stereo_cam = false;
-
 };
+
 map<int, cv::Point2f> pts_map(vector<int> ids, vector<cv::Point2f> cur_pts);
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status);
 void reduceVector(vector<int> &v, vector<uchar> status);
@@ -116,6 +114,7 @@ vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_p
                     vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts, vector<cv::Point2f> prediction_points = vector<cv::Point2f>());
 
 std::vector<cv::Point2f> detect_orb_by_region(cv::InputArray _img, cv::InputArray _mask, int features, int cols = 4, int rows = 4);
+void detectPoints(cv::InputArray img, cv::InputArray mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts);
 
 std::vector<cv::cuda::GpuMat> buildImagePyramid(const cv::cuda::GpuMat& prevImg, int maxLevel_ = 3);
 

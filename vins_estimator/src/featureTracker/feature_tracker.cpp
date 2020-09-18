@@ -49,7 +49,7 @@ double distance(cv::Point2f &pt1, cv::Point2f &pt2)
 
 
 
-std::vector<cv::Point2f> detect_orb_by_region(cv::InputArray _img, cv::InputArray _mask, int features, int cols = 4, int rows = 4) {
+std::vector<cv::Point2f> detect_orb_by_region(cv::InputArray _img, cv::InputArray _mask, int features, int cols, int rows) {
     int small_width = _img.cols() / cols;
     int small_height = _img.rows() / rows;
     
@@ -75,7 +75,7 @@ std::vector<cv::Point2f> detect_orb_by_region(cv::InputArray _img, cv::InputArra
 }
 
 
-void BaseFeatureTracker::detectPoints(cv::InputArray img, cv::InputArray mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts) {
+void detectPoints(cv::InputArray img, cv::InputArray mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts) {
     int lack_up_top_pts = require_pts - static_cast<int>(cur_pts.size());
 
     //Add Points Top
@@ -114,7 +114,7 @@ void BaseFeatureTracker::detectPoints(cv::InputArray img, cv::InputArray mask, v
 
  }
 
-void FeatureTracker::setup_feature_frame(FeatureFrame & ff, vector<int> ids, vector<cv::Point2f> cur_pts, vector<cv::Point3f> cur_un_pts, vector<cv::Point3f> cur_pts_vel, int camera_id) {
+void BaseFeatureTracker::setup_feature_frame(FeatureFrame & ff, vector<int> ids, vector<cv::Point2f> cur_pts, vector<cv::Point3f> cur_un_pts, vector<cv::Point3f> cur_pts_vel, int camera_id) {
     // ROS_INFO("Setup feature frame pts %ld un pts %ld vel %ld on Camera %d", cur_pts.size(), cur_un_pts.size(), cur_pts_vel.size(), camera_id);
     for (size_t i = 0; i < ids.size(); i++)
     {
@@ -142,9 +142,9 @@ void FeatureTracker::setup_feature_frame(FeatureFrame & ff, vector<int> ids, vec
 
 
 
-vector<cv::Point2f> FeatureTracker::opticalflow_track(vector<cv::Mat> * cur_pyr, 
+vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr, 
                         vector<cv::Mat> * prev_pyr, vector<cv::Point2f> & prev_pts, 
-                        vector<int> & ids, vector<int> & track_cnt, vector<cv::Point2f> prediction_points, std::set<int> removed_pts) {
+                        vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts, vector<cv::Point2f> prediction_points) {
     if (prev_pts.size() == 0) {
         return vector<cv::Point2f>();
     }
@@ -216,9 +216,9 @@ vector<cv::Point2f> FeatureTracker::opticalflow_track(vector<cv::Mat> * cur_pyr,
     return cur_pts;
 }
 
-vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_pyr, 
+vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_pyr, 
                         cv::Mat & prev_img, vector<cv::Mat> * prev_pyr, vector<cv::Point2f> & prev_pts, 
-                        vector<int> & ids, vector<int> & track_cnt, vector<cv::Point2f> prediction_points, std::set<int> removed_pts) {
+                        vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts, vector<cv::Point2f> prediction_points) {
     if (prev_pts.size() == 0) {
         return vector<cv::Point2f>();
     }
@@ -467,6 +467,22 @@ vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img,
         n++;
 
     return cur_pts;
+}
+
+std::vector<cv::cuda::GpuMat> buildImagePyramid(const cv::cuda::GpuMat& prevImg, int maxLevel_) {
+    std::vector<cv::cuda::GpuMat> prevPyr;
+    prevPyr.resize(maxLevel_ + 1);
+
+    int cn = prevImg.channels();
+
+    CV_Assert(cn == 1 || cn == 3 || cn == 4);
+
+    prevPyr[0] = prevImg;
+    for (int level = 1; level <= maxLevel_; ++level) {
+        cv::cuda::pyrDown(prevPyr[level - 1], prevPyr[level]);
+    }
+
+    return prevPyr;
 }
 
 };

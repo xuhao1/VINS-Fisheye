@@ -97,7 +97,7 @@ class FeaturePerId
 class FeatureManager
 {
   public:
-    FeatureTracker * ft = nullptr;
+    FeatureTracker::BaseFeatureTracker * ft = nullptr;
     FeatureManager(Matrix3d _Rs[]);
 
     void setRic(Matrix3d _ric[]);

@@ -17,13 +17,13 @@ bool PinholeFeatureTracker<CvMat>::inBorder(const cv::Point2f &pt) const
     const int BORDER_SIZE = 1;
     int img_x = cvRound(pt.x);
     int img_y = cvRound(pt.y);
-    return BORDER_SIZE <= img_x && img_x < col - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < row - BORDER_SIZE;
+    return BORDER_SIZE <= img_x && img_x < width - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < height - BORDER_SIZE;
 }
 
 template<class CvMat>
 void PinholeFeatureTracker<CvMat>::setMask()
 {
-    mask = cv::Mat(row, col, CV_8UC1, cv::Scalar(255));
+    mask = cv::Mat(width, height, CV_8UC1, cv::Scalar(255));
 
     // prefer to keep features that are tracked for long time
     vector<pair<int, pair<cv::Point2f, int>>> cnt_pts_id;
@@ -74,6 +74,8 @@ void PinholeFeatureTracker<CvMat>::readIntrinsicParameter(const vector<string> &
         ROS_INFO("reading paramerter of camera %s", calib_file[i].c_str());
         camodocal::CameraPtr camera = CameraFactory::instance()->generateCameraFromYamlFile(calib_file[i]);
         m_camera.push_back(camera);
+        height = camera->imageHeight();
+        width = camera->imageWidth();
     }
     if (calib_file.size() == 2)
         stereo_cam = 1;
@@ -98,7 +100,7 @@ vector<cv::Point2f> PinholeFeatureTracker<CvMat>::undistortedPts(vector<cv::Poin
 }
 
 template<class CvMat>
-std::vector<cv::Point2f> PinholeFeatureTracker<CvMat>:::ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 
+std::vector<cv::Point2f> PinholeFeatureTracker<CvMat>::ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 
                                             map<int, cv::Point2f> &cur_id_pts, map<int, cv::Point2f> &prev_id_pts)
 {
     vector<cv::Point2f> pts_velocity;
@@ -210,7 +212,6 @@ void PinholeFeatureTracker<CvMat>::setPrediction(map<int, Eigen::Vector3d> &pred
 {
     hasPrediction = true;
     predict_pts.clear();
-    predict_pts_debug.clear();
     map<int, Eigen::Vector3d>::iterator itPredict;
     for (size_t i = 0; i < ids.size(); i++)
     {
@@ -222,33 +223,33 @@ void PinholeFeatureTracker<CvMat>::setPrediction(map<int, Eigen::Vector3d> &pred
             Eigen::Vector2d tmp_uv;
             m_camera[0]->spaceToPlane(itPredict->second, tmp_uv);
             predict_pts.push_back(cv::Point2f(tmp_uv.x(), tmp_uv.y()));
-            predict_pts_debug.push_back(cv::Point2f(tmp_uv.x(), tmp_uv.y()));
         }
         else
             predict_pts.push_back(prev_pts[i]);
     }
 }
 
-virtual void PinholeFeatureTracker<CvMat>::removeOutliers(set<int> &removePtsIds) {
-    std::set<int>::iterator itSet;
-    vector<uchar> status;
-    for (size_t i = 0; i < ids.size(); i++)
-    {
-        itSet = removePtsIds.find(ids[i]);
-        if(itSet != removePtsIds.end())
-            status.push_back(0);
-        else
-            status.push_back(1);
-    }
+// template <class CvMat>
+// void PinholeFeatureTracker<CvMat>::removeOutliers(set<int> &removePtsIds) {
+//     std::set<int>::iterator itSet;
+//     vector<uchar> status;
+//     for (size_t i = 0; i < ids.size(); i++)
+//     {
+//         itSet = removePtsIds.find(ids[i]);
+//         if(itSet != removePtsIds.end())
+//             status.push_back(0);
+//         else
+//             status.push_back(1);
+//     }
 
-    reduceVector(prev_pts, status);
-    reduceVector(ids, status);
-    reduceVector(track_cnt, status);
-}
+//     reduceVector(prev_pts, status);
+//     reduceVector(ids, status);
+//     reduceVector(track_cnt, status);
+// }
 
 template<class CvMat>
-virtual FeatureFrame PinholeFeatureTracker<CvMat>::trackImage(double _cur_time, cv::InputArray _img, 
-        cv::InputArray _img1 = cv::noArray())
+FeatureFrame PinholeFeatureTracker<CvMat>::trackImage(double _cur_time, cv::InputArray _img, 
+        cv::InputArray _img1)
 {
     /*
     TicToc t_r;

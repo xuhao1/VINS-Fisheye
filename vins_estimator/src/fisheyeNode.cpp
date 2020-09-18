@@ -1,6 +1,7 @@
 #include "fisheyeNode.hpp"
+#include "featureTracker/feature_tracker_fisheye.hpp"
 
-        
+using namespace FeatureTracker;     
 FisheyeFlattenHandler::FisheyeFlattenHandler(ros::NodeHandle & n): mask_up(5, 0), mask_down(5, 0) 
 {
 
@@ -304,8 +305,7 @@ void VinsNodeBaseClass::processFlattened(const ros::TimerEvent & e) {
         estimator.inputFisheyeImage(std::get<0>(cur_frame_gray), std::get<1>(cur_frame_gray), std::get<2>(cur_frame_gray));
 
         double t_0 = t0.toc();
-        //Need to wait for pack and send to end
-        pack_and_send_mtx.lock();
+        //Need to wait for pack and send to endft
         pack_and_send_mtx.unlock();
 
         if(ENABLE_PERF_OUTPUT) {
@@ -374,12 +374,23 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     
     std::cout << "config file is " << config_file << '\n';
     readParameters(config_file);
+
     estimator.setParameter();
 
     ROS_INFO("Will %d GPU", USE_GPU);
-    
     if (ENABLE_DEPTH) {
-        cam_manager = new DepthCamManager(n, &(estimator.featureTracker.fisheys_undists[0]));
+        FisheyeUndist *fun = nullptr;
+        if (USE_GPU) {
+            auto ft = (BaseFisheyeFeatureTracker<cv::cuda::GpuMat> *)
+                estimator.featureTracker;
+            fun = ft->get_fisheye_undist(0);
+        } else {
+            auto ft = (BaseFisheyeFeatureTracker<cv::Mat> *)
+                estimator.featureTracker;
+            fun = ft->get_fisheye_undist(0);
+        }
+
+        cam_manager = new DepthCamManager(n, fun);
         cam_manager -> init_with_extrinsic(estimator.ric[0], estimator.tic[0], estimator.ric[1], estimator.tic[1]);
         estimator.depth_cam_manager = cam_manager;
     }

@@ -115,7 +115,7 @@ class Estimator
     std::thread processThread;
     std::thread depthThread;
 
-    FeatureTracker featureTracker;
+    FeatureTracker::BaseFeatureTracker * featureTracker = nullptr;
 
     SolverFlag solver_flag;
     MarginalizationFlag  marginalization_flag;

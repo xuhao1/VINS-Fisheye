@@ -16,7 +16,7 @@ void FisheyeFeatureTrackerCuda::drawTrackFisheye(const cv::Mat & img_up,
     imDownTop.download(b);
     imUpSide_cuda.download(c);
     imDownSide_cuda.download(d);
-    drawTrackFisheye(img_up, img_down, a, b, c, d);
+    BaseFisheyeFeatureTracker::drawTrackFisheye(img_up, img_down, a, b, c, d);
 }
 
 cv::cuda::GpuMat concat_side(const std::vector<cv::cuda::GpuMat> & arr) {
@@ -116,21 +116,6 @@ void FisheyeFeatureTrackerCuda::detectPoints(const cv::cuda::GpuMat & img, vecto
  }
 
 
-std::vector<cv::cuda::GpuMat> buildImagePyramid(const cv::cuda::GpuMat& prevImg, int maxLevel_ = 3) {
-    std::vector<cv::cuda::GpuMat> prevPyr;
-    prevPyr.resize(maxLevel_ + 1);
-
-    int cn = prevImg.channels();
-
-    CV_Assert(cn == 1 || cn == 3 || cn == 4);
-
-    prevPyr[0] = prevImg;
-    for (int level = 1; level <= maxLevel_; ++level) {
-        cv::cuda::pyrDown(prevPyr[level - 1], prevPyr[level]);
-    }
-
-    return prevPyr;
-}
 
 
 FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,   
