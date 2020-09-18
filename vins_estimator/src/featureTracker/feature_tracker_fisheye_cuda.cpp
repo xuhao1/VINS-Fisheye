@@ -1,9 +1,11 @@
 #include "feature_tracker.h"
 #include "../estimator/estimator.h"
 #include "fisheye_undist.hpp"
-
+#include "feature_tracker_fisheye.hpp"
+namespace FeatureTracker {
 #ifdef USE_CUDA
-void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
+
+void FisheyeFeatureTrackerCuda::drawTrackFisheye(const cv::Mat & img_up,
     const cv::Mat & img_down,
     cv::cuda::GpuMat imUpTop,
     cv::cuda::GpuMat imDownTop,
@@ -50,7 +52,7 @@ std::vector<cv::Mat> convertCPUMat(const std::vector<cv::cuda::GpuMat> & arr) {
 }
 
 
-void FeatureTracker::detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point2f> & n_pts, 
+void FisheyeFeatureTrackerCuda::detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point2f> & n_pts, 
         vector<cv::Point2f> & cur_pts, int require_pts) {
     int lack_up_top_pts = require_pts - static_cast<int>(cur_pts.size());
 
@@ -100,11 +102,10 @@ void FeatureTracker::detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point
                     n_pts.push_back(pt);
                 }
             }
-        }
-         else {
+        } else {
             n_pts = n_pts_tmp;
-         }
-    }
+            }
+        }
     else {
         n_pts.clear();
     }
@@ -131,125 +132,9 @@ std::vector<cv::cuda::GpuMat> buildImagePyramid(const cv::cuda::GpuMat& prevImg,
     return prevPyr;
 }
 
-vector<cv::Point2f> FeatureTracker::opticalflow_track(cv::cuda::GpuMat & cur_img, 
-                        std::vector<cv::cuda::GpuMat> & prev_pyr, vector<cv::Point2f> & prev_pts, 
-                        vector<int> & ids, vector<int> & track_cnt,
-                        bool is_lr_track, vector<cv::Point2f> prediction_points){
 
-
-    TicToc tic1;
-    auto cur_pyr = buildImagePyramid(cur_img);
-    
-    if (prev_pts.size() == 0) {
-        if (!is_lr_track)
-            prev_pyr = cur_pyr;
-        return vector<cv::Point2f>();
-    }
-
-    TicToc tic;
-    vector<uchar> status;
-
-    for (size_t i = 0; i < ids.size(); i ++) {
-        int _id = ids[i];
-        if (removed_pts.find(_id) == removed_pts.end()) {
-            status.push_back(1);
-        } else {
-            status.push_back(0);
-        }
-    }
-
-    reduceVector(prev_pts, status);
-    reduceVector(cur_pts, status);
-    reduceVector(ids, status);
-    if(track_cnt.size() > 0) {
-        reduceVector(track_cnt, status);
-    }
-
-    if (prev_pts.size() == 0) {
-        if (!is_lr_track)
-            prev_pyr = cur_pyr;
-        return vector<cv::Point2f>();
-    }
-
-    vector<cv::Point2f> cur_pts;
-    TicToc t_og;
-    cv::cuda::GpuMat prev_gpu_pts(prev_pts);
-    cv::cuda::GpuMat cur_gpu_pts(cur_pts);
-    cv::cuda::GpuMat gpu_status;
-    cv::cuda::GpuMat gpu_err;
-
-    vector<float> err;
-    status.clear();
-
-    //Assume No Prediction Need to add later
-    cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-        cv::Size(21, 21), 3, 30, false);
-
-    d_pyrLK_sparse->calc(prev_pyr, cur_pyr, prev_gpu_pts, cur_gpu_pts, gpu_status, gpu_err);
-    
-    cur_gpu_pts.download(cur_pts);
-    gpu_err.download(err);
-
-    gpu_status.download(status);
-
-    if(FLOW_BACK)
-    {
-        // ROS_INFO("Is flow back");
-        cv::cuda::GpuMat reverse_gpu_status;
-        cv::cuda::GpuMat reverse_gpu_pts = prev_gpu_pts;
-        cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-            cv::Size(21, 21), 3, 30, true);
-        d_pyrLK_sparse->calc(cur_pyr, prev_pyr, cur_gpu_pts, reverse_gpu_pts, reverse_gpu_status);
-
-        vector<cv::Point2f> reverse_pts(reverse_gpu_pts.cols);
-        reverse_gpu_pts.download(reverse_pts);
-
-        vector<uchar> reverse_status(reverse_gpu_status.cols);
-        reverse_gpu_status.download(reverse_status);
-
-        for(size_t i = 0; i < status.size(); i++)
-        {
-            if(status[i] && reverse_status[i] && distance(prev_pts[i], reverse_pts[i]) <= 0.5)
-            {
-                status[i] = 1;
-            }
-            else
-                status[i] = 0;
-        }
-    }
-    // printf("gpu temporal optical flow costs: %f ms\n",t_og.toc());
-
-    for (int i = 0; i < int(cur_pts.size()); i++){
-        if (status[i] && !inBorder(cur_pts[i], cur_img.size())) {
-            status[i] = 0;
-        }
-    }            
-
-    reduceVector(prev_pts, status);
-    reduceVector(cur_pts, status);
-    reduceVector(ids, status);
-    if(track_cnt.size() > 0) {
-        reduceVector(track_cnt, status);
-    }
-
-    if (ENABLE_PERF_OUTPUT) {
-        ROS_INFO("Optical flow costs: %fms Pts %ld", t_og.toc(), ids.size());
-    }
-
-    //printf("track cnt %d\n", (int)ids.size());
-    if (!is_lr_track)
-        prev_pyr = cur_pyr;
-
-    for (auto &n : track_cnt)
-        n++;
-
-    return cur_pts;
-}
-
-FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,   
-        const std::vector<cv::cuda::GpuMat> & fisheye_imgs_up,
-        const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down,
-        bool is_blank_init) {
+FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,   
+    cv::InputArray img1, cv::InputArray img2) {
     cur_time = _cur_time;
     static double detected_time_sum = 0;
     static double ft_time_sum = 0;
@@ -258,12 +143,14 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     if (!is_blank_init) {
         count += 1;
     }
-
+    CvCudaImages fisheye_imgs_up, fisheye_imgs_down;
+    img1.getGpuMatVector(fisheye_imgs_up);
+    img2.getGpuMatVector(fisheye_imgs_down);
     TicToc t_r;
     cv::cuda::GpuMat up_side_img = concat_side(fisheye_imgs_up);
     cv::cuda::GpuMat down_side_img = concat_side(fisheye_imgs_down);
     cv::cuda::GpuMat up_top_img = fisheye_imgs_up[0];
-    cv::cuda::GpuMat down_top_img = fisheye_imgs_down[0];
+    cv::cuda::GpuMat down_top_img = fisheye_imgs_down[1];
     double concat_cost = t_r.toc();
     TicToc t_ft;
     top_size = up_top_img.size();
@@ -298,14 +185,17 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
 
     if (enable_up_top) {
         // ROS_INFO("Tracking top");
-        cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_pyr_cuda, prev_up_top_pts, ids_up_top, track_up_top_cnt, false);
+        cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_pyr, prev_up_top_pts, 
+            ids_up_top, track_up_top_cnt, removed_pts, false);
     }
     if (enable_up_side) {
-        cur_up_side_pts = opticalflow_track(up_side_img, prev_up_side_pyr_cuda, prev_up_side_pts, ids_up_side, track_up_side_cnt, false);
+        cur_up_side_pts = opticalflow_track(up_side_img, prev_up_side_pyr, prev_up_side_pts, 
+            ids_up_side, track_up_side_cnt, removed_pts, false);
     }
 
     if (enable_down_top) {
-        cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_pyr_cuda, prev_down_top_pts, ids_down_top, track_down_top_cnt, false);
+        cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_pyr, prev_down_top_pts, 
+            ids_down_top, track_down_top_cnt, removed_pts, false);
     }
     
     ft_time_sum += t_ft.toc();
@@ -339,7 +229,8 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     if (enable_down_side) {
         ids_down_side = ids_up_side;
         std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
-        cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr_cuda, down_side_init_pts, ids_down_side, track_down_side_cnt, true);
+        cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr, down_side_init_pts, ids_down_side, 
+            track_down_side_cnt, removed_pts, true);
         ft_time_sum += tic2.toc();
         if (ENABLE_PERF_OUTPUT) {
             ROS_INFO("Optical flow 2 %fms", tic2.toc());
@@ -374,10 +265,6 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
         drawTrackFisheye(cv::Mat(), cv::Mat(), up_top_img, down_top_img, up_side_img, down_side_img);
     }
         
-    prev_up_top_img = up_top_img;
-    prev_down_top_img = down_top_img;
-    prev_up_side_img = up_side_img;
-
     prev_up_top_pts = cur_up_top_pts;
     prev_down_top_pts = cur_down_top_pts;
     prev_up_side_pts = cur_up_side_pts;
@@ -412,3 +299,4 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     return ff;
 }
 #endif
+};

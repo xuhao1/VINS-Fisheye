@@ -2,16 +2,17 @@
 #include "feature_tracker.h"
 #include "../estimator/estimator.h"
 #include "fisheye_undist.hpp"
+#include "feature_tracker_fisheye.hpp"
 
-
+namespace FeatureTracker {
 Eigen::Quaterniond t1(Eigen::AngleAxisd(-M_PI / 2, Eigen::Vector3d(1, 0, 0)));
 Eigen::Quaterniond t2 = t1 * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
 Eigen::Quaterniond t3 = t2 * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
 Eigen::Quaterniond t4 = t3 * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
 Eigen::Quaterniond t_down(Eigen::AngleAxisd(M_PI, Eigen::Vector3d(1, 0, 0)));
 
-
-void FeatureTracker::addPointsFisheye()
+template<class CvMat>
+void BaseFisheyeFeatureTracker<CvMat>::addPointsFisheye()
 {
     // ROS_INFO("Up top new pts %d", n_pts_up_top.size());
     for (auto p : n_pts_up_top)
@@ -54,59 +55,8 @@ cv::Mat concat_side(const std::vector<cv::Mat> & arr) {
     }
 }
 
-cv::Mat FeatureTracker::setMaskFisheye(cv::Size shape, vector<cv::Point2f> & cur_pts,
-    vector<int> & track_cnt, vector<int> & ids) {
-    mask = cv::Mat(shape, CV_8UC1, cv::Scalar(255));
-
-    // prefer to keep features that are tracked for long time
-    vector<pair<int, pair<cv::Point2f, int>>> cnt_pts_id;
-
-    for (unsigned int i = 0; i < cur_pts.size(); i++)
-        cnt_pts_id.push_back(make_pair(track_cnt[i], make_pair(cur_pts[i], ids[i])));
-
-    sort(cnt_pts_id.begin(), cnt_pts_id.end(), [](const pair<int, pair<cv::Point2f, int>> &a, const pair<int, pair<cv::Point2f, int>> &b)
-         {
-            return a.first > b.first;
-         });
-
-    cur_pts.clear();
-    ids.clear();
-    track_cnt.clear();
-
-    for (auto &it : cnt_pts_id)
-    {
-        // if (removed_pts.find(it.second.second) == removed_pts.end()) {
-            if (mask.at<uchar>(it.second.first) == 255)
-            {
-                cur_pts.push_back(it.second.first);
-                ids.push_back(it.second.second);
-                track_cnt.push_back(it.first);
-                cv::circle(mask, it.second.first, MIN_DIST, 0, -1);
-            }
-        // }
-    }
-
-    return mask;
-}
-
-
-void FeatureTracker::setMaskFisheye() {
-    //TODO:Set mask for fisheye
-    if(enable_up_top) {
-        mask_up_top = setMaskFisheye(top_size, cur_up_top_pts, track_up_top_cnt, ids_up_top);
-    }
-
-    if(enable_down_top) {
-        mask_down_top = setMaskFisheye(top_size, cur_down_top_pts, track_down_top_cnt, ids_down_top);
-    }
-
-    if(enable_up_side) {
-        mask_up_side = setMaskFisheye(side_size, cur_up_side_pts, track_up_side_cnt, ids_up_side);
-    }
-}
-
-
-void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
+template<class CvMat>
+void BaseFisheyeFeatureTracker<CvMat>::drawTrackFisheye(const cv::Mat & img_up,
     const cv::Mat & img_down,
     cv::Mat imUpTop,
     cv::Mat imDownTop,
@@ -199,8 +149,23 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
         cv::line(imUpSide, cv::Point2d(i*WIDTH, 0), cv::Point2d(i*WIDTH, side_height), cv::Scalar(255, 0, 0), 1);
         cv::line(imDownSide, cv::Point2d(i*WIDTH, 0), cv::Point2d(i*WIDTH, side_height), cv::Scalar(255, 0, 0), 1);
     }
-
-    cv::vconcat(imUpSide, imDownSide, imTrack);
+vector<cv::Point3f> BaseFeatureTracker::undistortedPtsTop(vector<cv::Point2f> &pts, FisheyeUndist & fisheye) {
+    auto & cam = fisheye.cam_top;
+    vector<cv::Point3f> un_pts;
+    for (unsigned int i = 0; i < pts.size(); i++)
+    {
+        Eigen::Vector2d a(pts[i].x, pts[i].y);
+        Eigen::Vector3d b;
+        cam->liftProjective(a, b);
+        b.normalize();
+#ifdef UNIT_SPHERE_ERROR
+        un_pts.push_back(cv::Point3f(b.x(), b.y(), b.z()));
+#else
+        un_pts.push_back(cv::Point3f(b.x() / b.z(), b.y() / b.z(), 1));
+#endif
+    }
+    return un_pts;
+}
 
     cv::Mat top_cam;
 
@@ -222,56 +187,101 @@ void FeatureTracker::drawTrackFisheye(const cv::Mat & img_up,
 }
 
 
-void FeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, vector<int> ids, map<int, cv::Point2f> prev_pts) {
-    char idtext[10] = {0};
-    for (size_t j = 0; j < pts.size(); j++) {
-        //Not tri
-        //Not solving
-        //Just New point yellow
-        cv::Scalar color = cv::Scalar(0, 255, 255);
-        if (pts_status.find(ids[j]) != pts_status.end()) {
-            int status = pts_status[ids[j]];
-            if (status < 0) {
-                //Removed points
-                color = cv::Scalar(0, 0, 0);
-            }
-
-            if (status == 1) {
-                //Good pt; But not used for solving; Blue 
-                color = cv::Scalar(255, 0, 0);
-            }
-
-            if (status == 2) {
-                //Bad pt; Red
-                color = cv::Scalar(0, 0, 255);
-            }
-
-            if (status == 3) {
-                //Good pt for solving; Green
-                color = cv::Scalar(0, 255, 0);
-            }
-
-        }
-
-        cv::circle(img, pts[j], 1, color, 2);
-
-        sprintf(idtext, "%d", ids[j]);
-	    cv::putText(img, idtext, pts[j] - cv::Point2f(5, 0), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
-
-    }
-
-    for (size_t i = 0; i < ids.size(); i++)
+template<class CvMat>
+vector<cv::Point3f> BaseFisheyeFeatureTracker<CvMat>::undistortedPtsTop(vector<cv::Point2f> &pts, FisheyeUndist & fisheye) {
+    auto & cam = fisheye.cam_top;
+    vector<cv::Point3f> un_pts;
+    for (unsigned int i = 0; i < pts.size(); i++)
     {
-        int id = ids[i];
-        auto mapIt = prev_pts.find(id);
-        if(mapIt != prev_pts.end()) {
-            cv::arrowedLine(img, mapIt->second, pts[i], cv::Scalar(0, 255, 0), 1, 8, 0, 0.2);
-        }
+        Eigen::Vector2d a(pts[i].x, pts[i].y);
+        Eigen::Vector3d b;
+        cam->liftProjective(a, b);
+        b.normalize();
+#ifdef UNIT_SPHERE_ERROR
+        un_pts.push_back(cv::Point3f(b.x(), b.y(), b.z()));
+#else
+        un_pts.push_back(cv::Point3f(b.x() / b.z(), b.y() / b.z(), 1));
+#endif
     }
+    return un_pts;
+}
+
+template<class CvMat>
+FeatureFrame BaseFisheyeFeatureTracker<CvMat>::setup_feature_frame() override {
+    FeatureFrame ff;
+    setup_feature_frame(ff, ids_up_top, cur_up_top_pts, cur_up_top_un_pts, up_top_vel, 0);   
+    setup_feature_frame(ff, ids_up_side, cur_up_side_pts, cur_up_side_un_pts, up_side_vel, 0);
+    setup_feature_frame(ff, ids_down_top, cur_down_top_pts, cur_down_top_un_pts, down_top_vel, 1);
+    setup_feature_frame(ff, ids_down_side, cur_down_side_pts, cur_down_side_un_pts, down_side_vel, 1);
+
+    return ff;
 }
 
 
-FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time, const std::vector<cv::Mat> & fisheye_imgs_up, const std::vector<cv::Mat> & fisheye_imgs_down) {
+template<class CvMat>
+void BaseFisheyeFeatureTracker<CvMat>::readIntrinsicParameter(const vector<string> &calib_file)
+{
+    for (size_t i = 0; i < calib_file.size(); i++)
+    {
+        ROS_INFO("reading paramerter of camera %s", calib_file[i].c_str());
+        camodocal::CameraPtr camera = CameraFactory::instance()->generateCameraFromYamlFile(calib_file[i]);
+        m_camera.push_back(camera);
+
+        ROS_INFO("Use as fisheye %s", calib_file[i].c_str());
+        FisheyeUndist un(calib_file[i].c_str(), i, FISHEYE_FOV, true, WIDTH);
+        fisheys_undists.push_back(un);
+
+    }
+    if (calib_file.size() == 2)
+        stereo_cam = 1;
+}
+
+template<class CvMat>
+vector<cv::Point3f> BaseFisheyeFeatureTracker<CvMat>::ptsVelocity3D(vector<int> &ids, vector<cv::Point3f> &cur_pts, 
+                                            map<int, cv::Point3f> &cur_id_pts, map<int, cv::Point3f> &prev_id_pts)
+{
+    // ROS_INFO("Pts %ld Prev pts %ld IDS %ld", cur_pts.size(), prev_id_pts.size(), ids.size());
+    vector<cv::Point3f> pts_velocity;
+    cur_id_pts.clear();
+    for (unsigned int i = 0; i < ids.size(); i++)
+    {
+        cur_id_pts.insert(make_pair(ids[i], cur_pts[i]));
+    }
+
+    // caculate points velocity
+    if (!prev_id_pts.empty())
+    {
+        double dt = cur_time - prev_time;
+        
+        for (unsigned int i = 0; i < cur_pts.size(); i++)
+        {
+            std::map<int, cv::Point3f>::iterator it;
+            it = prev_id_pts.find(ids[i]);
+            if (it != prev_id_pts.end())
+            {
+                double v_x = (cur_pts[i].x - it->second.x) / dt;
+                double v_y = (cur_pts[i].y - it->second.y) / dt;
+                double v_z = (cur_pts[i].z - it->second.z) / dt;
+                pts_velocity.push_back(cv::Point3f(v_x, v_y, v_z));
+                // ROS_INFO("Dt %f, vel %f %f %f", v_x, v_y, v_z);
+
+            }
+            else
+                pts_velocity.push_back(cv::Point3f(0, 0, 0));
+
+        }
+    }
+    else
+    {
+        for (unsigned int i = 0; i < cur_pts.size(); i++)
+        {
+            pts_velocity.push_back(cv::Point3f(0, 0, 0));
+        }
+    }
+    return pts_velocity;
+}
+
+FeatureFrame FisheyeFeatureTrackerOMP::trackImage(double _cur_time, InputArray fisheye_imgs_up, InputArray fisheye_imgs_down) {
     // ROS_INFO("tracking fisheye cpu %ld:%ld", fisheye_imgs_up.size(), fisheye_imgs_down.size());
     cur_time = _cur_time;
     static double count = 0;
@@ -512,10 +522,10 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time, const std::vec
 }
 
 
-
-vector<cv::Point3f> FeatureTracker::undistortedPtsSide(vector<cv::Point2f> &pts, FisheyeUndist & fisheye, bool is_downward) {
+template<class CvMat>
+vector<cv::Point3f> BaseFisheyeFeatureTracker<class CvMat>::undistortedPtsSide(vector<cv::Point2f> &pts, FisheyeUndist & fisheye, bool is_downward) {
     auto & cam = fisheye.cam_side;
-    vector<cv::Point3f> un_pts;
+    std::vector<cv::Point3f> un_pts;
     //Need to rotate pts
     //Side pos 1,2,3,4 is left front right
     //For downward camera, additational rotate 180 deg on x is required
@@ -568,4 +578,4 @@ vector<cv::Point3f> FeatureTracker::undistortedPtsSide(vector<cv::Point2f> &pts,
     }
     return un_pts;
 }
-
+};
