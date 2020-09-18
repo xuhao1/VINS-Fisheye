@@ -28,7 +28,14 @@ Estimator::Estimator(): f_manager{Rs}
     // begin_time_count = 10;
     initFirstPoseFlag = false;
 
-    if (FISHEYE) {
+   
+    f_manager.ft = featureTracker;
+
+}
+
+void Estimator::setParameter()
+{
+     if (FISHEYE) {
         if (USE_GPU) {
             featureTracker = new FeatureTracker::FisheyeFeatureTrackerCuda(this);
         } else {
@@ -38,12 +45,6 @@ Estimator::Estimator(): f_manager{Rs}
         //Not implement yet
     }
 
-    f_manager.ft = featureTracker;
-
-}
-
-void Estimator::setParameter()
-{
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         tic[i] = TIC[i];
