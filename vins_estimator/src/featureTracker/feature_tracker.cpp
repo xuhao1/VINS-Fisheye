@@ -191,12 +191,6 @@ vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr,
     }
     // printf("gpu temporal optical flow costs: %f ms\n",t_og.toc());
 
-    for (int i = 0; i < int(cur_pts.size()); i++) {
-        if (status[i]) {
-            status[i] = 0;
-        }
-    }            
-
     reduceVector(prev_pts, status);
     reduceVector(cur_pts, status);
     reduceVector(ids, status);
@@ -269,13 +263,6 @@ vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_p
                 status[i] = 0;
         }
     }
-    // printf("gpu temporal optical flow costs: %f ms\n",t_og.toc());
-
-    for (int i = 0; i < int(cur_pts.size()); i++) {
-        if (status[i]) {
-            status[i] = 0;
-        }
-    }            
 
     reduceVector(prev_pts, status);
     reduceVector(cur_pts, status);
@@ -441,12 +428,6 @@ vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img,
         }
     }
     // printf("gpu temporal optical flow costs: %f ms\n",t_og.toc());
-
-    for (int i = 0; i < int(cur_pts.size()); i++){
-        if (status[i]) {
-            status[i] = 0;
-        }
-    }            
 
     reduceVector(prev_pts, status);
     reduceVector(cur_pts, status);

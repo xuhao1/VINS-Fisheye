@@ -27,10 +27,6 @@ Estimator::Estimator(): f_manager{Rs}
     // sum_t_feature = 0.0;
     // begin_time_count = 10;
     initFirstPoseFlag = false;
-
-   
-    f_manager.ft = featureTracker;
-
 }
 
 void Estimator::setParameter()
@@ -44,6 +40,8 @@ void Estimator::setParameter()
     } else {
         //Not implement yet
     }
+
+    f_manager.ft = featureTracker;
 
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
