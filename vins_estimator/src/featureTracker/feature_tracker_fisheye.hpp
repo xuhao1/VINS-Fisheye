@@ -259,8 +259,9 @@ void BaseFisheyeFeatureTracker<CvMat>::drawTrackFisheye(const cv::Mat & img_up,
         cv::line(imDownSide, cv::Point2d(i*WIDTH, 0), cv::Point2d(i*WIDTH, side_height), cv::Scalar(255, 0, 0), 1);
     }
 
-    cv::Mat top_cam;
+    cv::vconcat(imUpSide, imDownSide, imTrack);
 
+    cv::Mat top_cam;
 
     cv::hconcat(imUpTop, imDownTop, top_cam);
     cv::hconcat(fisheye_up, top_cam, top_cam);

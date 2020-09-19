@@ -326,7 +326,7 @@ void VinsNodeBaseClass::fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &
 
     if (USE_GPU) {
     } else {
-        estimator.inputImage(img1_msg->header.stamp.toSec(), cv::Mat(), cv::Mat(), 
+        estimator.inputFisheyeImage(img1_msg->header.stamp.toSec(), 
             fisheye_handler->fisheye_up_imgs, fisheye_handler->fisheye_down_imgs);
     }
 }

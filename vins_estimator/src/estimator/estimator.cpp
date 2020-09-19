@@ -67,9 +67,7 @@ void Estimator::setParameter()
     }
 }
 
-void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1, 
-        const CvImages & fisheye_imgs_up, 
-        const CvImages & fisheye_imgs_down)
+void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
     static int img_track_count = 0;
     static double sum_time = 0;
@@ -77,11 +75,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
     FeatureFrame featureFrame;
     TicToc featureTrackerTime;
 
-    if (FISHEYE) {
-        featureFrame = featureTracker->trackImage(t, fisheye_imgs_up, fisheye_imgs_down);
-    } else {
-        featureFrame = featureTracker->trackImage(t, _img, _img1);
-    }
+    featureFrame = featureTracker->trackImage(t, _img, _img1);
 
     double dt = featureTrackerTime.toc();
     sum_time += dt;
@@ -91,11 +85,6 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
     {
         mBuf.lock();
         featureBuf.push(make_pair(t, featureFrame));
-        if (FISHEYE && ENABLE_DEPTH) {
-            fisheye_imgs_upBuf.push(fisheye_imgs_up);
-            fisheye_imgs_downBuf.push(fisheye_imgs_down);
-            fisheye_imgs_stampBuf.push(t);
-        }
         mBuf.unlock();
     }
 }
@@ -156,13 +145,12 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
     FeatureFrame featureFrame;
     TicToc featureTrackerTime;
     
-    if (USE_GPU && is_blank_init) {
+    if (is_blank_init) {
         featureFrame = ((FeatureTracker::FisheyeFeatureTrackerCuda*)featureTracker)->
             trackImage_blank_init(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
-    }
-
-    if (is_blank_init) {
-        return;
+            return;
+    } else {
+        featureFrame = featureTracker->trackImage(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
     }
 
     if(inputImageCnt % 2 == 0)

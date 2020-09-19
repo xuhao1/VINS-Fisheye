@@ -52,9 +52,7 @@ class Estimator
     void initFirstPose(Eigen::Vector3d p, Eigen::Matrix3d r);
     void inputIMU(double t, const Vector3d &linearAcceleration, const Vector3d &angularVelocity);
     void inputFeature(double t, const FeatureFrame &featureFrame);
-    void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat(), 
-        const CvImages & up_imgs = CvImages(0), 
-        const CvImages & down_imgs = CvImages(0));
+    void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
 
     bool is_next_odometry_frame();
     void inputFisheyeImage(double t, const CvCudaImages & up_imgs, const CvCudaImages & down_imgs, bool is_blank_init = false);
