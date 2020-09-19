@@ -45,8 +45,8 @@ FeatureFrame FisheyeFeatureTrackerOpenMP::trackImage(double _cur_time, cv::Input
 
     cv::Mat up_side_img = concat_side(fisheye_imgs_up);
     cv::Mat down_side_img = concat_side(fisheye_imgs_down);
-    cv::Mat up_top_img = fisheye_imgs_up[0];
-    cv::Mat down_top_img = fisheye_imgs_down[0];
+    cv::Mat & up_top_img = fisheye_imgs_up[0];
+    cv::Mat & down_top_img = fisheye_imgs_down[0];
 
     std::vector<cv::Mat> * up_top_pyr = nullptr, * down_top_pyr = nullptr, * up_side_pyr = nullptr, * down_side_pyr = nullptr;
     double concat_cost = t_r.toc();

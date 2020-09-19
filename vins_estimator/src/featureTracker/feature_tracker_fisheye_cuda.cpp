@@ -134,8 +134,8 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     TicToc t_r;
     cv::cuda::GpuMat up_side_img = concat_side(fisheye_imgs_up);
     cv::cuda::GpuMat down_side_img = concat_side(fisheye_imgs_down);
-    cv::cuda::GpuMat up_top_img = fisheye_imgs_up[0];
-    cv::cuda::GpuMat down_top_img = fisheye_imgs_down[0];
+    cv::cuda::GpuMat & up_top_img = fisheye_imgs_up[0];
+    cv::cuda::GpuMat & down_top_img = fisheye_imgs_down[0];
     double concat_cost = t_r.toc();
     TicToc t_ft;
     top_size = up_top_img.size();

@@ -56,7 +56,9 @@ public:
         estimator(_estimator)
     {
     }
+    
     virtual void setPrediction(map<int, Eigen::Vector3d> &predictPts) = 0;
+
     virtual FeatureFrame trackImage(double _cur_time, cv::InputArray _img, 
         cv::InputArray _img1 = cv::noArray()) = 0;
     
