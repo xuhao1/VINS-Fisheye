@@ -65,8 +65,12 @@ class FisheyeFlattenHandler
 
         bool has_image_in_buffer();
 
-        double pop_from_buffer(cv::OutputArray up_gray, cv::OutputArray down_gray,
-            cv::OutputArray up_color_gray, cv::OutputArray down_color_gray
+        double pop_from_buffer(CvCudaImages & up_gray, CvCudaImages & down_gray,
+            CvCudaImages & up_color_gray, CvCudaImages & down_color_gray
+        );
+        
+        double pop_from_buffer(CvImages & up_gray, CvImages & down_gray,
+            CvImages & up_color_gray, CvImages & down_color_gray
         );
 
         void setup_extrinsic(vins::FlattenImages & images, const Estimator & estimator);

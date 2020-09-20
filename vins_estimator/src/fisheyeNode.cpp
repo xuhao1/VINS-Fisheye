@@ -103,10 +103,10 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
             fisheye_buf_t.push(t);
             fisheye_cuda_buf_up.push(fisheye_up_imgs_cuda_gray);
             fisheye_cuda_buf_down.push(fisheye_down_imgs_cuda_gray);
-
-            fisheye_cuda_buf_up_color.push(fisheye_up_imgs_cuda);
-            fisheye_cuda_buf_down_color.push(fisheye_down_imgs_cuda);
-
+            if(is_color) {
+                fisheye_cuda_buf_up_color.push(fisheye_up_imgs_cuda);
+                fisheye_cuda_buf_down_color.push(fisheye_down_imgs_cuda);
+            }
             buf_lock.unlock();
         }
     } else {
@@ -142,8 +142,10 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
         fisheye_buf_up.push(fisheye_up_imgs_gray);
         fisheye_buf_down.push(fisheye_down_imgs_gray);
 
-        fisheye_buf_up_color.push(fisheye_up_imgs);
-        fisheye_buf_down_color.push(fisheye_down_imgs);
+        if (is_color) {
+            fisheye_buf_up_color.push(fisheye_up_imgs);
+            fisheye_buf_down_color.push(fisheye_down_imgs);
+        }
 
         buf_lock.unlock();
     }
@@ -157,22 +159,22 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
 }
 
 bool FisheyeFlattenHandler::has_image_in_buffer() {
-    return fisheye_cuda_buf_down.size() > 0;
+    return fisheye_buf_t.size() > 0;
 }
 
 double FisheyeFlattenHandler::pop_from_buffer(
-            cv::OutputArray up_gray, cv::OutputArray down_gray,
-            cv::OutputArray up_color, cv::OutputArray down_color) {
+            CvCudaImages & up_gray, CvCudaImages & down_gray,
+            CvCudaImages & up_color, CvCudaImages & down_color) {
     if (USE_GPU) {
         buf_lock.lock();
         if (fisheye_buf_t.size() > 0) {
             auto t = fisheye_buf_t.front();
-            up_gray.getGpuMatVecRef() = fisheye_cuda_buf_up.front();
-            down_gray.getGpuMatVecRef() = fisheye_cuda_buf_down.front();
+            up_gray = fisheye_cuda_buf_up.front();
+            down_gray = fisheye_cuda_buf_down.front();
 
             if(is_color) {
-                up_color.getGpuMatVecRef() = fisheye_cuda_buf_up_color.front();
-                down_color.getGpuMatVecRef()  = fisheye_cuda_buf_down_color.front();
+                up_color = fisheye_cuda_buf_up_color.front();
+                down_color = fisheye_cuda_buf_down_color.front();
             }
 
 
@@ -188,21 +190,25 @@ double FisheyeFlattenHandler::pop_from_buffer(
             buf_lock.unlock();
             return t;
         }
-    } else {
+    }
+    return -1;
+}
+
+double FisheyeFlattenHandler::pop_from_buffer(
+            CvImages & up_gray, CvImages & down_gray,
+            CvImages & up_color, CvImages & down_color) {
+    if(!USE_GPU) {
         buf_lock.lock();
         if (fisheye_buf_t.size() > 0) {
             auto t = fisheye_buf_t.front();
 
-            for (size_t i = 0; i < 5; i++) {
-                up_gray.assign(fisheye_buf_up.front());
-                down_gray.assign(fisheye_buf_down.front());
+            up_gray = fisheye_buf_up.front();
+            down_gray = fisheye_buf_down.front();
 
-                if(is_color) {
-                    up_color.assign(fisheye_buf_up_color.front());
-                    down_color.assign(fisheye_buf_down_color.front());
-                }
+            if(is_color) {
+                up_color = fisheye_buf_up_color.front();
+                down_color = fisheye_buf_down_color.front();
             }
-
 
             fisheye_buf_t.pop();
             fisheye_buf_up.pop();
@@ -439,12 +445,6 @@ void VinsNodeBaseClass::fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &
         ROS_WARN("Duration between two images is %fms", img1_msg->header.stamp.toSec() - t_last);
     }
     t_last = img1_msg->header.stamp.toSec();
-
-    if (USE_GPU) {
-    } else {
-        estimator.inputFisheyeImage(img1_msg->header.stamp.toSec(), 
-            fisheye_handler->fisheye_up_imgs, fisheye_handler->fisheye_down_imgs);
-    }
 }
 
 void VinsNodeBaseClass::img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
