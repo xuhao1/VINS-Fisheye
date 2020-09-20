@@ -116,7 +116,7 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
                 enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
             fisheye_up_imgs_gray.clear();
             fisheye_down_imgs_gray.clear();
-            for (auto & img: fisheye_up_imgs_cuda) {
+            for (auto & img: fisheye_up_imgs) {
                 cv::Mat gray;
                 if(!img.empty()) {
                     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
@@ -124,7 +124,7 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
                 fisheye_up_imgs_gray.push_back(gray);
             }
 
-            for (auto & img: fisheye_down_imgs_cuda) {
+            for (auto & img: fisheye_down_imgs) {
                 cv::Mat gray;
                 if(!img.empty()) {
                     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
