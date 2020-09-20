@@ -100,11 +100,14 @@ void reduceVector(vector<int> &v, vector<uchar> status);
 double distance(cv::Point2f &pt1, cv::Point2f &pt2);
 
 #ifdef USE_CUDA
-
 vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img, 
                     std::vector<cv::cuda::GpuMat> & prev_pyr, vector<cv::Point2f> & prev_pts, 
                     vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts,
                     bool is_lr_track, vector<cv::Point2f> prediction_points = vector<cv::Point2f>());
+
+std::vector<cv::cuda::GpuMat> buildImagePyramid(const cv::cuda::GpuMat& prevImg, int maxLevel_ = 3);
+void detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point2f> & n_pts, 
+        vector<cv::Point2f> & cur_pts, int require_pts);
 #endif
     
 vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr, 
@@ -118,7 +121,8 @@ vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_p
 std::vector<cv::Point2f> detect_orb_by_region(cv::InputArray _img, cv::InputArray _mask, int features, int cols = 4, int rows = 4);
 void detectPoints(cv::InputArray img, cv::InputArray mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts);
 
-std::vector<cv::cuda::GpuMat> buildImagePyramid(const cv::cuda::GpuMat& prevImg, int maxLevel_ = 3);
+
+bool inBorder(const cv::Point2f &pt, cv::Size shape);
 
 };
 

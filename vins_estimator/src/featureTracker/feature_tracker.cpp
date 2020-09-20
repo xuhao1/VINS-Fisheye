@@ -75,6 +75,14 @@ std::vector<cv::Point2f> detect_orb_by_region(cv::InputArray _img, cv::InputArra
 }
 
 
+bool inBorder(const cv::Point2f &pt, cv::Size shape)
+{
+    const int BORDER_SIZE = 1;
+    int img_x = cvRound(pt.x);
+    int img_y = cvRound(pt.y);
+    return BORDER_SIZE <= img_x && img_x < shape.width - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < shape.height - BORDER_SIZE;
+}
+
 void detectPoints(cv::InputArray img, cv::InputArray mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts) {
     int lack_up_top_pts = require_pts - static_cast<int>(cur_pts.size());
 
@@ -264,6 +272,11 @@ vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_p
         }
     }
 
+    for (int i = 0; i < int(cur_pts.size()); i++){
+        if (status[i] && !inBorder(cur_pts[i], cur_img.size())) {
+            status[i] = 0;
+        }
+    }   
     reduceVector(prev_pts, status);
     reduceVector(cur_pts, status);
     reduceVector(ids, status);
@@ -342,7 +355,7 @@ void BaseFeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, 
     }
 }
 
-
+#ifdef USE_CUDA
 vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img, 
                         std::vector<cv::cuda::GpuMat> & prev_pyr, vector<cv::Point2f> & prev_pts, 
                         vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts,
@@ -428,7 +441,11 @@ vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img,
         }
     }
     // printf("gpu temporal optical flow costs: %f ms\n",t_og.toc());
-
+    for (int i = 0; i < int(cur_pts.size()); i++){
+        if (status[i] && !inBorder(cur_pts[i], cur_img.size())) {
+            status[i] = 0;
+        }
+    }   
     reduceVector(prev_pts, status);
     reduceVector(cur_pts, status);
     reduceVector(ids, status);
@@ -465,5 +482,71 @@ std::vector<cv::cuda::GpuMat> buildImagePyramid(const cv::cuda::GpuMat& prevImg,
 
     return prevPyr;
 }
+
+void detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point2f> & n_pts, 
+        vector<cv::Point2f> & cur_pts, int require_pts) {
+    int lack_up_top_pts = require_pts - static_cast<int>(cur_pts.size());
+
+    TicToc tic;
+    
+
+    if (lack_up_top_pts > require_pts/4) {
+
+        // ROS_INFO("Lack %d pts; Require %d will detect %d", lack_up_top_pts, require_pts, lack_up_top_pts > require_pts/4);
+        cv::Ptr<cv::cuda::CornersDetector> detector = cv::cuda::createGoodFeaturesToTrackDetector(
+            img.type(), lack_up_top_pts, 0.01, MIN_DIST);
+        cv::cuda::GpuMat d_prevPts;
+        detector->detect(img, d_prevPts);
+
+
+        std::vector<cv::Point2f> n_pts_tmp;
+
+        // std::cout << "d_prevPts size: "<< d_prevPts.size()<<std::endl;
+        if(!d_prevPts.empty()) {
+            n_pts_tmp = cv::Mat_<cv::Point2f>(cv::Mat(d_prevPts));
+        }
+        else {
+            n_pts_tmp.clear();
+        }
+
+        n_pts.clear();
+
+        if (cur_pts.size() > 0) {
+            cv::flann::KDTreeIndexParams indexParams;
+            // std::cout << cv::Mat(cur_pts).reshape(1) << std::endl;
+            cv::flann::Index kdtree(cv::Mat(cur_pts).reshape(1), indexParams);
+
+            for (auto & pt : n_pts_tmp) {
+                std::vector<float> query;
+                query.push_back(pt.x); //Insert the 2D point we need to find neighbours to the query
+                query.push_back(pt.y); //Insert the 2D point we need to find neighbours to the query
+
+                vector<int> indices;
+                vector<float> dists;
+                auto ret = kdtree.radiusSearch(query, indices, dists, MIN_DIST, 1);
+
+                if (ret && indices.size() > 0) {
+                    // printf("Ret %ld Found pt %d dis %f ", ret, indices[0], dists[0]);
+                    // printf("New PT %f %f foundpt %f %f Skipping...\n", pt.x, pt.y, cur_pts[indices[0]].x, cur_pts[indices[0]].y);
+                } else {
+                    // printf("No nearest neighbors found\n");
+                    n_pts.push_back(pt);
+                }
+            }
+        } else {
+            n_pts = n_pts_tmp;
+            }
+        }
+    else {
+        n_pts.clear();
+    }
+#ifdef PERF_OUTPUT
+    ROS_INFO("Detected %ld npts %fms", n_pts.size(), tic.toc());
+#endif
+
+}
+
+#endif
+
 
 };

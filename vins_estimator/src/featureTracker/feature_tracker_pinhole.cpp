@@ -3,15 +3,6 @@
 namespace FeatureTracker {
 
 template<class CvMat>
-bool PinholeFeatureTracker<CvMat>::inBorder(const cv::Point2f &pt, cv::Size shape) const
-{
-    const int BORDER_SIZE = 1;
-    int img_x = cvRound(pt.x);
-    int img_y = cvRound(pt.y);
-    return BORDER_SIZE <= img_x && img_x < shape.width - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < shape.height - BORDER_SIZE;
-}
-
-template<class CvMat>
 bool PinholeFeatureTracker<CvMat>::inBorder(const cv::Point2f &pt) const
 {
     const int BORDER_SIZE = 1;

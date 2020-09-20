@@ -15,7 +15,6 @@ protected:
     cv::Mat imTrack;
     int width, height;
     bool inBorder(const cv::Point2f &pt) const;
-    bool inBorder(const cv::Point2f &pt, cv::Size shape) const;
     void setMask();
     void addPoints();
     vector<cv::Point2f> ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 

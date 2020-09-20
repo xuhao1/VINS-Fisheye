@@ -110,8 +110,7 @@ protected:
                             cv::cuda::GpuMat imUpSide, 
                             cv::cuda::GpuMat imDownSide);
     std::vector<cv::cuda::GpuMat> prev_up_top_pyr, prev_down_top_pyr, prev_up_side_pyr;
-    void detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point2f> & n_pts, 
-        vector<cv::Point2f> & cur_pts, int require_pts);
+
 };
 
 
