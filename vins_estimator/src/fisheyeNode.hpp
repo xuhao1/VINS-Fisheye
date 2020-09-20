@@ -1,43 +1,24 @@
 #include <stdio.h>
 #include <queue>
 #include <map>
-#include <thread>
 #include <mutex>
-#include <nodelet/nodelet.h>
-#include <pluginlib/class_list_macros.h>
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
-#include "estimator/estimator.h"
-#include "estimator/parameters.h"
 #include "utility/visualization.h"
 #include "utility/tic_toc.h"
 
 #include <boost/thread.hpp>
-#include "depth_generation/depth_camera_manager.h"
 #include "vins/FlattenImages.h"
-#include "featureTracker/fisheye_undist.hpp"
 
-
-#include <nodelet/nodelet.h>
-#include <pluginlib/class_list_macros.h>
-#include <ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/opencv.hpp>
-#include "estimator/parameters.h"
-#include <boost/thread.hpp>
-#include "depth_generation/depth_camera_manager.h"
-#include "featureTracker/fisheye_undist.hpp"
-#include "camodocal/camera_models/CameraFactory.h"
-#include "camodocal/camera_models/CataCamera.h"
-#include "camodocal/camera_models/PinholeCamera.h"
-#include "utility/tic_toc.h"
-#include "vins/FlattenImages.h"
 #include "utility/opencv_cuda.h"
 #include "utility/ros_utility.h"
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
+class Estimator;
+class FisheyeUndist;
+class DepthCamManager;
 
 class FisheyeFlattenHandler
 {

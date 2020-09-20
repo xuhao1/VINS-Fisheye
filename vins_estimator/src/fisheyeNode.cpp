@@ -1,5 +1,9 @@
 #include "fisheyeNode.hpp"
 #include "featureTracker/feature_tracker_fisheye.hpp"
+#include "featureTracker/fisheye_undist.hpp"
+#include "estimator/estimator.h"
+#include "estimator/parameters.h"
+#include "depth_generation/depth_camera_manager.h"
 
 using namespace FeatureTracker;     
 FisheyeFlattenHandler::FisheyeFlattenHandler(ros::NodeHandle & n): mask_up(5, 0), mask_down(5, 0) 
