@@ -127,7 +127,7 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
             for (auto & img: fisheye_down_imgs_cuda) {
                 cv::Mat gray;
                 if(!img.empty()) {
-                    cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
                 }
                 fisheye_down_imgs_gray.push_back(gray);
             }
