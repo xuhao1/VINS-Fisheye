@@ -77,6 +77,7 @@ int FLOW_BACK;
 
 int WARN_IMU_DURATION;
 int PUB_FLATTEN;
+int FLATTEN_COLOR;
 
 std::string configPath;
 
@@ -156,7 +157,7 @@ void readParameters(std::string config_file)
     IMAGE_FREQ = fsSettings["image_freq"];
     WARN_IMU_DURATION = fsSettings["warn_imu_duration"];
     PUB_FLATTEN = fsSettings["pub_flatten"];
-
+    FLATTEN_COLOR = fsSettings["flatten_color"];
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);
     if(USE_IMU)

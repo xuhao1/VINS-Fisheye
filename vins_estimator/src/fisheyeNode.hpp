@@ -106,8 +106,8 @@ class VinsNodeBaseClass {
         CvCudaImages cur_up_color_cuda, cur_down_color_cuda;
         CvCudaImages cur_up_gray_cuda, cur_down_gray_cuda;
 
-        CvCudaImages cur_up_color, cur_down_color;
-        CvCudaImages cur_up_gray, cur_down_gray;
+        CvImages cur_up_color, cur_down_color;
+        CvImages cur_up_gray, cur_down_gray;
 
         double cur_frame_t;
 

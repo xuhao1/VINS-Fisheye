@@ -68,31 +68,34 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
 
     TicToc t_f;
 
-
     if (USE_GPU) {
         // is_color = true;
-        fisheye_up_imgs_cuda = fisheys_undists[0].undist_all_cuda(img1, is_color, mask_up); 
-        fisheye_up_imgs_cuda_gray.clear();
-        fisheye_down_imgs_cuda_gray.clear();
+        if (is_color) {
+            fisheye_up_imgs_cuda = fisheys_undists[0].undist_all_cuda(img1, true, mask_up); 
+            fisheye_down_imgs_cuda = fisheys_undists[1].undist_all_cuda(img2, true, mask_down);
+            fisheye_up_imgs_cuda_gray.clear();
+            fisheye_down_imgs_cuda_gray.clear();
 
 
-        fisheye_down_imgs_cuda = fisheys_undists[1].undist_all_cuda(img2, is_color, mask_down);
-
-        for (auto & img: fisheye_up_imgs_cuda) {
-            cv::cuda::GpuMat gray;
-            if(!img.empty()) {
-                cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-            }
-            fisheye_up_imgs_cuda_gray.push_back(gray);
-        }
-
-        for (auto & img: fisheye_down_imgs_cuda) {
-            cv::cuda::GpuMat gray;
-            if(!img.empty()) {
-                cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+            for (auto & img: fisheye_up_imgs_cuda) {
+                cv::cuda::GpuMat gray;
+                if(!img.empty()) {
+                    cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                }
+                fisheye_up_imgs_cuda_gray.push_back(gray);
             }
 
-            fisheye_down_imgs_cuda_gray.push_back(gray);
+            for (auto & img: fisheye_down_imgs_cuda) {
+                cv::cuda::GpuMat gray;
+                if(!img.empty()) {
+                    cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                }
+
+                fisheye_down_imgs_cuda_gray.push_back(gray);
+            }
+        } else {
+            fisheye_up_imgs_cuda_gray = fisheys_undists[0].undist_all_cuda(img1, false, mask_up); 
+            fisheye_down_imgs_cuda_gray = fisheys_undists[1].undist_all_cuda(img2, false, mask_down);
         }
 
         if (!is_blank_init) {
@@ -105,33 +108,34 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
             fisheye_cuda_buf_down_color.push(fisheye_down_imgs_cuda);
 
             buf_lock.unlock();
-        } else {
-            return;
         }
-        
-
     } else {
-        fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
-            fisheye_up_imgs, fisheye_down_imgs, false, 
-            enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
-
-        for (auto & img: fisheye_up_imgs_cuda) {
-            cv::Mat gray;
-            if(!img.empty()) {
-                cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-            }
-            fisheye_up_imgs_gray.push_back(gray);
-        }
-
-        for (auto & img: fisheye_down_imgs_cuda) {
-            cv::Mat gray;
-            if(!img.empty()) {
-                cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+        if (is_color) {
+            fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
+                fisheye_up_imgs, fisheye_down_imgs, true, 
+                enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
+            fisheye_up_imgs_gray.clear();
+            fisheye_down_imgs_gray.clear();
+            for (auto & img: fisheye_up_imgs_cuda) {
+                cv::Mat gray;
+                if(!img.empty()) {
+                    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                }
+                fisheye_up_imgs_gray.push_back(gray);
             }
 
-            fisheye_down_imgs_gray.push_back(gray);
+            for (auto & img: fisheye_down_imgs_cuda) {
+                cv::Mat gray;
+                if(!img.empty()) {
+                    cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                }
+                fisheye_down_imgs_gray.push_back(gray);
+            }
+        } else {
+            fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
+                fisheye_up_imgs_gray, fisheye_down_imgs_gray, false, 
+                enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
         }
-
 
         buf_lock.lock();
         fisheye_buf_t.push(t);
@@ -142,7 +146,6 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
         fisheye_buf_down_color.push(fisheye_down_imgs);
 
         buf_lock.unlock();
-
     }
 
     double tf = t_f.toc();
@@ -189,22 +192,25 @@ double FisheyeFlattenHandler::pop_from_buffer(
         buf_lock.lock();
         if (fisheye_buf_t.size() > 0) {
             auto t = fisheye_buf_t.front();
-            up_gray.getGpuMatVecRef() = fisheye_cuda_buf_up.front();
-            down_gray.getGpuMatVecRef() = fisheye_cuda_buf_down.front();
 
-            if(is_color) {
-                up_color.getGpuMatVecRef() = fisheye_cuda_buf_up_color.front();
-                down_color.getGpuMatVecRef()  = fisheye_cuda_buf_down_color.front();
+            for (size_t i = 0; i < 5; i++) {
+                up_gray.assign(fisheye_buf_up.front());
+                down_gray.assign(fisheye_buf_down.front());
+
+                if(is_color) {
+                    up_color.assign(fisheye_buf_up_color.front());
+                    down_color.assign(fisheye_buf_down_color.front());
+                }
             }
 
 
             fisheye_buf_t.pop();
-            fisheye_cuda_buf_up.pop();
-            fisheye_cuda_buf_down.pop();
+            fisheye_buf_up.pop();
+            fisheye_buf_down.pop();
 
             if(is_color) {
-                fisheye_cuda_buf_up_color.pop();
-                fisheye_cuda_buf_down_color.pop();
+                fisheye_buf_up_color.pop();
+                fisheye_buf_down_color.pop();
             }
             
             buf_lock.unlock();
@@ -513,9 +519,9 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     registerPub(n);
 
     if (FISHEYE) {
-        fisheye_handler = new FisheyeFlattenHandler(n);
+        fisheye_handler = new FisheyeFlattenHandler(n, FLATTEN_COLOR);
     }
-    
+
     //We use blank images to initialize cuda before every thing
     if (USE_GPU) {
         TicToc blank;
