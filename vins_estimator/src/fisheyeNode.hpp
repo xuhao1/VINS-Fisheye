@@ -46,7 +46,7 @@ class FisheyeFlattenHandler
         std::queue<CvImages> fisheye_buf_up, fisheye_buf_down;
         std::queue<CvImages> fisheye_buf_up_color, fisheye_buf_down_color;
 
-        std::queue<double> fisheye_cuda_buf_t;
+        std::queue<double> fisheye_buf_t;
         //Only gray image will be saved in buf now
 
         CvCudaImages fisheye_up_imgs_cuda, fisheye_down_imgs_cuda;
@@ -56,7 +56,7 @@ class FisheyeFlattenHandler
         CvImages fisheye_up_imgs_gray, fisheye_down_imgs_gray;
 
         
-        FisheyeFlattenHandler(ros::NodeHandle & n);
+        FisheyeFlattenHandler(ros::NodeHandle & n, bool _is_color = true);
 
 
         void img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg);
@@ -65,13 +65,15 @@ class FisheyeFlattenHandler
 
         bool has_image_in_buffer();
 
-        std::pair<std::tuple<double, CvCudaImages, CvCudaImages>, std::tuple<double, CvCudaImages, CvCudaImages>> pop_from_buffer();
+        double pop_from_buffer(cv::OutputArray up_gray, cv::OutputArray down_gray,
+            cv::OutputArray up_color_gray, cv::OutputArray down_color_gray
+        );
 
         void setup_extrinsic(vins::FlattenImages & images, const Estimator & estimator);
 
-        void pack_and_send_cuda(ros::Time stamp, 
-            const CvCudaImages & fisheye_up_imgs_cuda, const CvCudaImages & fisheye_down_imgs_cuda, 
-            const CvCudaImages & fisheye_up_imgs_cuda_gray, const CvCudaImages & fisheye_down_imgs_cuda_gray, 
+        void pack_and_send(ros::Time stamp, 
+            cv::InputArray fisheye_up_imgs, cv::InputArray fisheye_down_imgs, 
+            cv::InputArray fisheye_up_imgs_gray, cv::InputArray fisheye_down_imgs_gray, 
             const Estimator & estimator);
 
 
@@ -94,13 +96,20 @@ class VinsNodeBaseClass {
         double t_last = 0;
 
         double last_time;
-
+        
+        bool is_color = true;
 
         double t_last_send = 0;
         std::mutex pack_and_send_mtx;
         bool need_to_pack_and_send = false;
-        std::tuple<double, CvCudaImages, CvCudaImages> cur_frame;
-        std::tuple<double, CvCudaImages, CvCudaImages> cur_frame_gray;
+
+        CvCudaImages cur_up_color_cuda, cur_down_color_cuda;
+        CvCudaImages cur_up_gray_cuda, cur_down_gray_cuda;
+
+        CvCudaImages cur_up_color, cur_down_color;
+        CvCudaImages cur_up_gray, cur_down_gray;
+
+        double cur_frame_t;
 
         Estimator estimator;
         ros::Subscriber sub_imu;
