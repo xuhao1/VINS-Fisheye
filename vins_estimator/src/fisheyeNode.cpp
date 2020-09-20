@@ -515,13 +515,16 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     if (FISHEYE) {
         fisheye_handler = new FisheyeFlattenHandler(n);
     }
+    
     //We use blank images to initialize cuda before every thing
-    TicToc blank;
-    cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
-    fisheye_handler->img_callback(0, mat, mat, true);
-    estimator.inputFisheyeImage(0, 
+    if (USE_GPU) {
+        TicToc blank;
+        cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
+        fisheye_handler->img_callback(0, mat, mat, true);
+            estimator.inputFisheyeImage(0, 
             fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray, true);
-    std::cout<< "Initialize with blank cost" << blank.toc() << std::endl;
+        std::cout<< "Initialize with blank cost" << blank.toc() << std::endl;
+    }
 
     sub_imu = n.subscribe(IMU_TOPIC, 2000, &VinsNodeBaseClass::imu_callback, (VinsNodeBaseClass*)this, ros::TransportHints().tcpNoDelay(true));
     sub_restart = n.subscribe("/vins_restart", 100, &VinsNodeBaseClass::restart_callback, (VinsNodeBaseClass*)this, ros::TransportHints().tcpNoDelay(true));
