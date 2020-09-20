@@ -736,7 +736,9 @@ void Estimator::processImage(const FeatureFrame &image, const double header)
         if (ENABLE_PERF_OUTPUT) {
             ROS_INFO("Remove %ld outlier", removeIndex.size());
         }
+        
         f_manager.removeOutlier(removeIndex);
+        predictPtsInNextFrame();
         
         if(ENABLE_PERF_OUTPUT) {
             ROS_INFO("solver costs: %fms", t_solve.toc());
@@ -1733,6 +1735,7 @@ void Estimator::predictPtsInNextFrame()
     getPoseInWorldFrame(frame_count - 1, prevT);
     nextT = curT * (prevT.inverse() * curT);
     map<int, Eigen::Vector3d> predictPts;
+    map<int, Eigen::Vector3d> predictPts1;
 
     for (auto &_it : f_manager.feature)
     {
@@ -1749,13 +1752,14 @@ void Estimator::predictPtsInNextFrame()
                 Vector3d pts_w = Rs[firstIndex] * pts_j + Ps[firstIndex];
                 Vector3d pts_local = nextT.block<3, 3>(0, 0).transpose() * (pts_w - nextT.block<3, 1>(0, 3));
                 Vector3d pts_cam = ric[0].transpose() * (pts_local - tic[0]);
+                Vector3d pts_cam1 = ric[1].transpose() * (pts_local - tic[1]);
                 int ptsIndex = it_per_id.feature_id;
                 predictPts[ptsIndex] = pts_cam;
+                predictPts1[ptsIndex] = pts_cam1;
             }
         }
     }
-    featureTracker->setPrediction(predictPts);
-    //printf("estimator output %d predict pts\n",(int)predictPts.size());
+    featureTracker->setPrediction(predictPts, predictPts1);
 }
 
 double Estimator::reprojectionError(Matrix3d &Ri, Vector3d &Pi, Matrix3d &rici, Vector3d &tici,

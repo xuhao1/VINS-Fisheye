@@ -2,9 +2,10 @@
 #include "../estimator/estimator.h"
 #include "fisheye_undist.hpp"
 #include "feature_tracker_fisheye.hpp"
-namespace FeatureTracker {
-#ifdef USE_CUDA
 
+namespace FeatureTracker {
+
+#ifdef USE_CUDA
 void FisheyeFeatureTrackerCuda::drawTrackFisheye(const cv::Mat & img_up,
     const cv::Mat & img_down,
     cv::cuda::GpuMat imUpTop,
@@ -104,16 +105,16 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     if (enable_up_top) {
         // ROS_INFO("Tracking top");
         cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_pyr, prev_up_top_pts, 
-            ids_up_top, track_up_top_cnt, removed_pts, false);
+            ids_up_top, track_up_top_cnt, removed_pts, false, predict_up_top);
     }
     if (enable_up_side) {
         cur_up_side_pts = opticalflow_track(up_side_img, prev_up_side_pyr, prev_up_side_pts, 
-            ids_up_side, track_up_side_cnt, removed_pts, false);
+            ids_up_side, track_up_side_cnt, removed_pts, false, predict_up_side);
     }
 
     if (enable_down_top) {
         cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_pyr, prev_down_top_pts, 
-            ids_down_top, track_down_top_cnt, removed_pts, false);
+            ids_down_top, track_down_top_cnt, removed_pts, false, predict_down_top);
     }
     
     ft_time_sum += t_ft.toc();
@@ -148,7 +149,7 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
         ids_down_side = ids_up_side;
         std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
         cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr, down_side_init_pts, ids_down_side, 
-            track_down_side_cnt, removed_pts, true);
+            track_down_side_cnt, removed_pts, true, predict_down_side);
         ft_time_sum += tic2.toc();
         if (ENABLE_PERF_OUTPUT) {
             ROS_INFO("Optical flow 2 %fms", tic2.toc());

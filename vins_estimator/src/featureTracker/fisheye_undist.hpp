@@ -23,6 +23,9 @@ class FisheyeUndist {
 public:
     std::vector<std::pair<cv::Mat, cv::Mat>> undistMaps;
 
+    cv::Mat fisheye2cam_pt;
+    cv::Mat fisheye2cam_id;
+
     camodocal::CameraPtr cam_top;
     camodocal::CameraPtr cam_side;
     double f_side = 0;
@@ -39,12 +42,17 @@ public:
 
     int sideImgHeight = 0;
 
+    std::vector<Eigen::Quaterniond> t;
+
     FisheyeUndist(const std::string & camera_config_file, int _id, double _fov, bool _enable_cuda = true, int imgWidth = 600):
     imgWidth(imgWidth), fov(_fov), cameraRotation(0, 0, 0), enable_cuda(_enable_cuda), cam_id(_id) {
         cam = camodocal::CameraFactory::instance()
             ->generateCameraFromYamlFile(camera_config_file);
         raw_width = cam->imageWidth();
         raw_height = cam->imageHeight();
+        fisheye2cam_pt = cv::Mat::zeros(raw_width, raw_height, CV_32FC2);
+        fisheye2cam_id = cv::Mat::ones(raw_width, raw_height, CV_8UC1);
+        fisheye2cam_id = fisheye2cam_id * 255;
         undistMaps = generateAllUndistMap(cam, cameraRotation, imgWidth, fov);
         // ROS_INFO("undismap size %ld", undistMaps.size());
         if (enable_cuda) {
@@ -241,7 +249,8 @@ public:
                     // temp[0], temp[1]);
         }
         
-        auto t = Eigen::Quaterniond::Identity();
+        t.resize(5);
+        t[0] = Eigen::Quaterniond::Identity();
 
         // ROS_INFO("Pinhole cameras focal length: center %f side %f", f_center, f_side);
 
@@ -255,31 +264,83 @@ public:
                   imgWidth, sideImgHeight,0, 0, 0, 0,
                   f_side, f_side, imgWidth/2, sideImgHeight/2));
 
-        maps.push_back(genOneUndistMap(p_cam, t, imgWidth, imgWidth, f_center));
+        maps.push_back(genOneUndistMap(0, p_cam, t[0], imgWidth, imgWidth, f_center));
 
         if (cam_id == 1) {
             std::cout << "Is camera 1 will invert T" << std::endl;
-            t = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX());
+            t[0] = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX());
         };
 
         if (sideImgHeight > 0)
         {
             //facing y
-            t = t * Eigen::AngleAxis<double>(-M_PI / 2, Eigen::Vector3d(1, 0, 0));
-            maps.push_back(genOneUndistMap(p_cam, t, imgWidth, sideImgHeight, f_side));
+            t[1] = t[0] * Eigen::AngleAxis<double>(-M_PI / 2, Eigen::Vector3d(1, 0, 0));
+            maps.push_back(genOneUndistMap(1, p_cam, t[1], imgWidth, sideImgHeight, f_side));
 
             //turn right/left?
-            t = t * Eigen::AngleAxis<double>(M_PI / 2, Eigen::Vector3d(0, 1, 0));
-            maps.push_back(genOneUndistMap(p_cam, t, imgWidth, sideImgHeight, f_side));
-            t = t * Eigen::AngleAxis<double>(M_PI / 2, Eigen::Vector3d(0, 1, 0));
-            maps.push_back(genOneUndistMap(p_cam, t, imgWidth, sideImgHeight, f_side));
-            t = t * Eigen::AngleAxis<double>(M_PI / 2, Eigen::Vector3d(0, 1, 0));
-            maps.push_back(genOneUndistMap(p_cam, t, imgWidth, sideImgHeight, f_side));
+            t[2] = t[1] * Eigen::AngleAxis<double>(M_PI / 2, Eigen::Vector3d(0, 1, 0));
+            maps.push_back(genOneUndistMap(2, p_cam, t[2], imgWidth, sideImgHeight, f_side));
+            t[3] = t[2] * Eigen::AngleAxis<double>(M_PI / 2, Eigen::Vector3d(0, 1, 0));
+            maps.push_back(genOneUndistMap(3, p_cam, t[3], imgWidth, sideImgHeight, f_side));
+            t[4] = t[3] * Eigen::AngleAxis<double>(M_PI / 2, Eigen::Vector3d(0, 1, 0));
+            maps.push_back(genOneUndistMap(4, p_cam, t[4], imgWidth, sideImgHeight, f_side));
         }
         return maps;
     }
 
+    std::pair<int, cv::Point2f> project_point_to_vcam_id(Eigen::Vector3d pts_cam) {
+        //First project the point to fisheye image plane
+        Eigen::Vector2d imgPoint;
+        cam->spaceToPlane(pts_cam, imgPoint);
+        cv::Point2f pt = fisheye2cam_pt.at<cv::Vec2f>(cv::Point(imgPoint.x(), imgPoint.y()));
+        int id = fisheye2cam_id.at<uint8_t>(cv::Point(imgPoint.x(), imgPoint.y()));
+        if (id != 255) {
+            // std::cout << "\n\nPT" << pts_cam << " IMG " << imgPoint << " ID" << id << " PT " << pt << std::endl;
+            return std::make_pair(id, pt);
+        } else {
+            // std::cout << "Map not found, try project" << std::endl;
+        }
+
+        for (int i = 0; i < 5; i ++) {
+            auto pts_vcam = t[i].inverse()*pts_cam;
+            int width = imgWidth;
+            int height = sideImgHeight;
+            if (pts_vcam.z() < 0) {
+                continue;
+            }
+
+            if (i == 0) {
+                height = imgWidth;
+                cam_top->spaceToPlane(pts_vcam, imgPoint);
+            } else {
+                cam_side->spaceToPlane(pts_vcam, imgPoint);
+            }
+
+
+            if (!imgPoint.hasNaN() && 
+                imgPoint.x() >= 0 && imgPoint.x() < width &&
+                imgPoint.y() >= 0 && imgPoint.y() < height
+            ) {
+                id = i;
+                pt.x = imgPoint.x();
+                pt.y = imgPoint.y();
+                break;
+            }
+        }
+
+        
+        if (id == 255) {
+            // std::cout << "PT " << pts_cam << "not found in image" << std::endl;
+            return std::make_pair(-1, cv::Point2f(0, 0));
+        } else {
+            // std::cout << "\n\nPT" << pts_cam << "IMG " << imgPoint << "ID" << id << "PT" << pt << std::endl;
+            return std::make_pair(id, pt);
+        }
+
+    }
+
     std::pair<cv::Mat, cv::Mat> genOneUndistMap(
+        int _id, 
         camodocal::CameraPtr p_cam,
         Eigen::Quaterniond rotation,
         const unsigned &imgWidth,
@@ -302,7 +363,18 @@ public:
                         f_center);
                 Eigen::Vector2d imgPoint;
                 p_cam->spaceToPlane(objPoint, imgPoint);
+
                 map.at<cv::Vec2f>(cv::Point(x, y)) = cv::Vec2f(imgPoint.x(), imgPoint.y());
+                if(!isnan(imgPoint.x()) && !isnan(imgPoint.y()) && 
+                    imgPoint.x() >=0 && imgPoint.x() <= raw_width &&
+                    imgPoint.y() >=0 && imgPoint.y() <= raw_height
+                ) {
+                    auto & pt = fisheye2cam_pt.at<cv::Vec2f>(cv::Point(imgPoint.x(), imgPoint.y()));
+                    fisheye2cam_id.at<uint8_t>(cv::Point(imgPoint.x(), imgPoint.y())) = _id;
+                    pt[0] = x;
+                    pt[1] = y;
+                }
+                
             }
 
         ROS_DEBUG("Upper corners: (%.2f, %.2f), (%.2f, %.2f)",

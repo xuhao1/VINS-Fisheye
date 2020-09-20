@@ -199,17 +199,16 @@ void PinholeFeatureTracker<CvMat>::drawTrack(const cv::Mat &imLeft, const cv::Ma
 
 
 template<class CvMat>
-void PinholeFeatureTracker<CvMat>::setPrediction(map<int, Eigen::Vector3d> &predictPts)
+void PinholeFeatureTracker<CvMat>::setPrediction(const map<int, Eigen::Vector3d> &predictPts_cam0, const map<int, Eigen::Vector3d> &predictPt_cam1)
 {
     hasPrediction = true;
     predict_pts.clear();
-    map<int, Eigen::Vector3d>::iterator itPredict;
     for (size_t i = 0; i < ids.size(); i++)
     {
         //printf("prevLeftId size %d prevLeftPts size %d\n",(int)prevLeftIds.size(), (int)prevLeftPts.size());
         int id = ids[i];
-        itPredict = predictPts.find(id);
-        if (itPredict != predictPts.end())
+        auto itPredict = predictPts_cam0.find(id);
+        if (itPredict != predictPts_cam0.end())
         {
             Eigen::Vector2d tmp_uv;
             m_camera[0]->spaceToPlane(itPredict->second, tmp_uv);

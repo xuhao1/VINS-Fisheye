@@ -83,6 +83,21 @@ bool inBorder(const cv::Point2f &pt, cv::Size shape)
     return BORDER_SIZE <= img_x && img_x < shape.width - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < shape.height - BORDER_SIZE;
 }
 
+vector<cv::Point2f> get_predict_pts(vector<int> ids, const vector<cv::Point2f> & cur_pt, const std::map<int, cv::Point2f> & predict) {
+    assert(ids.size() == cur_pt.size() && "[get_predict_pts] IDS must same size as cur pt");
+    std::vector<cv::Point2f> ret(cur_pt.size());
+    for (size_t i = 0; i < ids.size(); i++) {
+        if(predict.find(ids[i]) != predict.end()) {
+            ret[i] = predict.at(ids[i]);
+        } else {
+            ret[i] = cur_pt.at(i);
+        }
+    }
+    
+    return ret;
+}
+
+
 void detectPoints(cv::InputArray img, cv::InputArray mask, vector<cv::Point2f> & n_pts, vector<cv::Point2f> & cur_pts, int require_pts) {
     int lack_up_top_pts = require_pts - static_cast<int>(cur_pts.size());
 
@@ -152,10 +167,11 @@ void BaseFeatureTracker::setup_feature_frame(FeatureFrame & ff, vector<int> ids,
 
 vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr, 
                         vector<cv::Mat> * prev_pyr, vector<cv::Point2f> & prev_pts, 
-                        vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts, vector<cv::Point2f> prediction_points) {
+                        vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts, std::map<int, cv::Point2f> prediction_points) {
     if (prev_pts.size() == 0) {
         return vector<cv::Point2f>();
     }
+
     TicToc tic;
     vector<uchar> status;
 
@@ -170,12 +186,13 @@ vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr,
 
     reduceVector(prev_pts, status);
     reduceVector(ids, status);
-    
+    reduceVector(track_cnt, status);
+
     if (prev_pts.size() == 0) {
         return vector<cv::Point2f>();
     }
 
-    vector<cv::Point2f> cur_pts;
+    vector<cv::Point2f> cur_pts = get_predict_pts(ids, prev_pts, prediction_points);
     TicToc t_og;
     status.clear();
     vector<float> err;
@@ -202,9 +219,7 @@ vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr,
     reduceVector(prev_pts, status);
     reduceVector(cur_pts, status);
     reduceVector(ids, status);
-    if(track_cnt.size() > 0) {
-        reduceVector(track_cnt, status);
-    }
+    reduceVector(track_cnt, status);
 
 #ifdef PERF_OUTPUT
     ROS_INFO("Optical flow costs: %fms Pts %ld", t_og.toc(), ids.size());
@@ -220,7 +235,7 @@ vector<cv::Point2f> opticalflow_track(vector<cv::Mat> * cur_pyr,
 
 vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_pyr, 
                         cv::Mat & prev_img, vector<cv::Mat> * prev_pyr, vector<cv::Point2f> & prev_pts, 
-                        vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts, vector<cv::Point2f> prediction_points) {
+                        vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts, std::map<int, cv::Point2f> prediction_points) {
     if (prev_pts.size() == 0) {
         return vector<cv::Point2f>();
     }
@@ -238,12 +253,14 @@ vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_p
 
     reduceVector(prev_pts, status);
     reduceVector(ids, status);
+    reduceVector(track_cnt, status);
     
     if (prev_pts.size() == 0) {
         return vector<cv::Point2f>();
     }
 
-    vector<cv::Point2f> cur_pts;
+    vector<cv::Point2f> cur_pts = get_predict_pts(ids, prev_pts, prediction_points);
+
     TicToc t_og;
     status.clear();
     vector<float> err;
@@ -251,14 +268,16 @@ vector<cv::Point2f> opticalflow_track(cv::Mat & cur_img, vector<cv::Mat> * cur_p
     TicToc t_build;
 
     TicToc t_calc;
-    cv::calcOpticalFlowPyrLK(*prev_pyr, *cur_pyr, prev_pts, cur_pts, status, err, WIN_SIZE, PYR_LEVEL);
+    cv::calcOpticalFlowPyrLK(*prev_pyr, *cur_pyr, prev_pts, cur_pts, status, err, WIN_SIZE, PYR_LEVEL, 
+        cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01), cv::OPTFLOW_USE_INITIAL_FLOW);
     // cv::calcOpticalFlowPyrLK(prev_img, cur_img, prev_pts, cur_pts, status, err, WIN_SIZE, PYR_LEVEL);
     // std::cout << "Track img Prev pts" << prev_pts.size() << " TS " << t_calc.toc() << std::endl;    
     if(FLOW_BACK)
     {
         vector<cv::Point2f> reverse_pts;
         vector<uchar> reverse_status;
-        cv::calcOpticalFlowPyrLK(*cur_pyr, *prev_pyr, cur_pts, reverse_pts, reverse_status, err, WIN_SIZE, PYR_LEVEL);
+        cv::calcOpticalFlowPyrLK(*cur_pyr, *prev_pyr, cur_pts, reverse_pts, reverse_status, err, WIN_SIZE, PYR_LEVEL,
+            cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01), cv::OPTFLOW_USE_INITIAL_FLOW);
         // cv::calcOpticalFlowPyrLK(cur_img, prev_img, cur_pts, reverse_pts, reverse_status, err, WIN_SIZE, PYR_LEVEL);
 
         for(size_t i = 0; i < status.size(); i++)
@@ -307,7 +326,7 @@ map<int, cv::Point2f> pts_map(vector<int> ids, vector<cv::Point2f> cur_pts) {
     return prevMap;
 }
 
-void BaseFeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, vector<int> ids, map<int, cv::Point2f> prev_pts) {
+void BaseFeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, vector<int> ids, map<int, cv::Point2f> prev_pts, map<int, cv::Point2f> predictions) {
     char idtext[10] = {0};
     for (size_t j = 0; j < pts.size(); j++) {
         //Not tri
@@ -339,10 +358,18 @@ void BaseFeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, 
         }
 
         cv::circle(img, pts[j], 1, color, 2);
-
         sprintf(idtext, "%d", ids[j]);
 	    cv::putText(img, idtext, pts[j] - cv::Point2f(5, 0), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
+    }
 
+    for (auto it : predictions) {
+        auto _id = it.first;
+        auto pt = it.second;
+        cv::Scalar color(255, 255, 0);
+        cv::circle(img, pt, 1, color, 2);
+
+        sprintf(idtext, "P%d", _id);
+	    cv::putText(img, idtext, pt + cv::Point2f(5, 5), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
     }
 
     for (size_t i = 0; i < ids.size(); i++)
@@ -359,7 +386,7 @@ void BaseFeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, 
 vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img, 
                         std::vector<cv::cuda::GpuMat> & prev_pyr, vector<cv::Point2f> & prev_pts, 
                         vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts,
-                        bool is_lr_track, vector<cv::Point2f> prediction_points){
+                        bool is_lr_track, std::map<int, cv::Point2f> prediction_points) {
 
 
     TicToc tic1;
@@ -395,7 +422,8 @@ vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img,
         return vector<cv::Point2f>();
     }
 
-    vector<cv::Point2f> cur_pts;
+    vector<cv::Point2f> cur_pts = get_predict_pts(ids, prev_pts, prediction_points);
+
     TicToc t_og;
     cv::cuda::GpuMat prev_gpu_pts(prev_pts);
     cv::cuda::GpuMat cur_gpu_pts(cur_pts);
@@ -406,7 +434,7 @@ vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img,
 
     //Assume No Prediction Need to add later
     cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
-        cv::Size(21, 21), 3, 30, false);
+        cv::Size(21, 21), 3, 30, true);
 
     d_pyrLK_sparse->calc(prev_pyr, cur_pyr, prev_gpu_pts, cur_gpu_pts, gpu_status, gpu_err);
     

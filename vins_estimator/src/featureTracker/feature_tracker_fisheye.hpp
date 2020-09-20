@@ -23,6 +23,9 @@ public:
         t3 = t2 * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
         t4 = t3 * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
     }
+
+    virtual void setPrediction(const map<int, Eigen::Vector3d> &predictPts_cam0, const map<int, Eigen::Vector3d> &predictPt_cam1 =  map<int, Eigen::Vector3d>()) override;
+
 protected:
     virtual FeatureFrame setup_feature_frame() override;
     
@@ -47,7 +50,7 @@ protected:
     cv::Size side_size;
 
     vector<cv::Point2f> n_pts_up_top, n_pts_down_top, n_pts_up_side;
-    vector<cv::Point2f> predict_up_side, predict_pts_left_top, predict_pts_right_top, predict_pts_down_side;
+    std::map<int, cv::Point2f> predict_up_side, predict_up_top, predict_down_top, predict_down_side;
     vector<cv::Point2f> prev_up_top_pts, cur_up_top_pts, prev_up_side_pts, cur_up_side_pts, prev_down_top_pts, prev_down_side_pts;
     
     vector<cv::Point3f> prev_up_top_un_pts,  prev_up_side_un_pts, prev_down_top_un_pts, prev_down_side_un_pts;
@@ -74,11 +77,6 @@ protected:
     map<int, cv::Point3f> cur_down_side_un_pts_map, prev_down_side_un_pts_map;
     
     CvMat prev_up_top_img, prev_up_side_img, prev_down_top_img;
-
-    virtual void setPrediction(map<int, Eigen::Vector3d> &predictPts) {
-        //TODO:Not implement yet
-    }
-
 
     Eigen::Quaterniond t1;
     Eigen::Quaterniond t2;
@@ -164,6 +162,45 @@ cv::cuda::GpuMat concat_side(const std::vector<cv::cuda::GpuMat> & arr);
 cv::Mat concat_side(const std::vector<cv::Mat> & arr);
 std::vector<cv::Mat> convertCPUMat(const std::vector<cv::cuda::GpuMat> & arr);
 
+
+template<class CvMat>
+void BaseFisheyeFeatureTracker<CvMat>::setPrediction(const map<int, Eigen::Vector3d> &predictPts_cam0, const map<int, Eigen::Vector3d> &predictPts_cam1) {
+    // std::cout << 
+    predict_up_top.clear();
+    predict_up_side.clear();
+    predict_down_top.clear();
+    predict_down_side.clear();
+
+    for (auto it : predictPts_cam0) {
+        int _id = it.first;
+        auto pt = it.second;
+        auto ret = fisheys_undists[0].project_point_to_vcam_id(pt);
+        if (ret.first >= 0 ) {
+            if (ret.first == 0){
+                predict_up_top[_id] = ret.second;
+            } else if (ret.first > 1) {
+                cv::Point2f pt(ret.second.x + (ret.first - 1)*WIDTH, ret.second.y);
+                predict_up_side[_id] = pt;
+            } 
+        }
+    }
+
+    for (auto it : predictPts_cam1) {
+        int _id = it.first;
+        auto pt = it.second;
+        auto ret = fisheys_undists[1].project_point_to_vcam_id(pt);
+        if (ret.first >= 0 ) {
+            if (ret.first == 0){
+                predict_down_top[_id] = ret.second;
+            } else if (ret.first > 1) {
+                cv::Point2f pt(ret.second.x + (ret.first - 1)*WIDTH, ret.second.y);
+                predict_down_side[_id] = pt;
+            } 
+        }
+    }
+
+}
+
 template<class CvMat>
 void BaseFisheyeFeatureTracker<CvMat>::drawTrackFisheye(const cv::Mat & img_up,
     const cv::Mat & img_down,
@@ -233,19 +270,19 @@ void BaseFisheyeFeatureTracker<CvMat>::drawTrackFisheye(const cv::Mat & img_up,
     }
 
     if(enable_up_top) {
-        drawTrackImage(imUpTop, cur_up_top_pts, ids_up_top, up_top_prevLeftPtsMap);
+        drawTrackImage(imUpTop, cur_up_top_pts, ids_up_top, up_top_prevLeftPtsMap, predict_up_top);
     }
 
     if(enable_down_top) {
-        drawTrackImage(imDownTop, cur_down_top_pts, ids_down_top, down_top_prevLeftPtsMap);
+        drawTrackImage(imDownTop, cur_down_top_pts, ids_down_top, down_top_prevLeftPtsMap, predict_down_top);
     }
 
     if(enable_up_side) {
-        drawTrackImage(imUpSide, cur_up_side_pts, ids_up_side, up_side_prevLeftPtsMap);
+        drawTrackImage(imUpSide, cur_up_side_pts, ids_up_side, up_side_prevLeftPtsMap, predict_up_side);
     }
 
     if(enable_down_side) {
-        drawTrackImage(imDownSide, cur_down_side_pts, ids_down_side, pts_map(ids_up_side, cur_up_side_pts));
+        drawTrackImage(imDownSide, cur_down_side_pts, ids_down_side, pts_map(ids_up_side, cur_up_side_pts), predict_down_side);
     }
 
     //Show images

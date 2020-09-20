@@ -117,7 +117,8 @@ FeatureFrame FisheyeFeatureTrackerOpenMP::trackImage(double _cur_time, cv::Input
             //If has predict;
             if (enable_up_top) {
                 // printf("Start track up top\n");
-                cur_up_top_pts = opticalflow_track(up_top_img, up_top_pyr, prev_up_top_img, prev_up_top_pyr, prev_up_top_pts, ids_up_top, track_up_top_cnt, removed_pts);
+                cur_up_top_pts = opticalflow_track(up_top_img, up_top_pyr, prev_up_top_img, prev_up_top_pyr, 
+                    prev_up_top_pts, ids_up_top, track_up_top_cnt, removed_pts, predict_up_top);
                 // printf("End track up top\n");
             }
         }
@@ -126,7 +127,8 @@ FeatureFrame FisheyeFeatureTrackerOpenMP::trackImage(double _cur_time, cv::Input
         {
             if (enable_up_side) {
                 // printf("Start track up side\n");
-                cur_up_side_pts = opticalflow_track(up_side_img, up_side_pyr, prev_up_side_img, prev_up_side_pyr, prev_up_side_pts, ids_up_side, track_up_side_cnt, removed_pts);
+                cur_up_side_pts = opticalflow_track(up_side_img, up_side_pyr, prev_up_side_img, prev_up_side_pyr, 
+                    prev_up_side_pts, ids_up_side, track_up_side_cnt, removed_pts, predict_up_side);
                 // printf("End track up side\n");
             }
         }
@@ -135,7 +137,8 @@ FeatureFrame FisheyeFeatureTrackerOpenMP::trackImage(double _cur_time, cv::Input
         {
             if (enable_down_top) {
                 // printf("Start track down top\n");
-                cur_down_top_pts = opticalflow_track(down_top_img, down_top_pyr, prev_down_top_img, prev_down_top_pyr, prev_down_top_pts, ids_down_top, track_down_top_cnt, removed_pts);
+                cur_down_top_pts = opticalflow_track(down_top_img, down_top_pyr, prev_down_top_img, prev_down_top_pyr, 
+                    prev_down_top_pts, ids_down_top, track_down_top_cnt, removed_pts, predict_down_top);
                 // printf("End track down top\n");
             }
         }
@@ -189,7 +192,7 @@ FeatureFrame FisheyeFeatureTrackerOpenMP::trackImage(double _cur_time, cv::Input
             std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
             if (down_side_init_pts.size() > 0) {
                 cur_down_side_pts = opticalflow_track(down_side_img, down_side_pyr, up_side_img, 
-                    up_side_pyr, down_side_init_pts, ids_down_side, track_down_side_cnt, removed_pts);
+                    up_side_pyr, down_side_init_pts, ids_down_side, track_down_side_cnt, removed_pts, predict_down_side);
             }
         }
     }

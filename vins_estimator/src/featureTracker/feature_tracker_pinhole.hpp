@@ -30,7 +30,7 @@ protected:
                     vector<cv::Point2f> &curRightPts,
                     map<int, cv::Point2f> &prevLeftPtsMap);
 
-    virtual void setPrediction(map<int, Eigen::Vector3d> &predictPts) override;
+    virtual void setPrediction(const map<int, Eigen::Vector3d> &predictPts_cam0, const map<int, Eigen::Vector3d> &predictPt_cam1 =  map<int, Eigen::Vector3d>()) override;
 
     vector<cv::Point2f> n_pts;
     CvMat prev_img, cur_img;
