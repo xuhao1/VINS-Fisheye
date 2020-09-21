@@ -266,15 +266,16 @@ public:
 
         maps.push_back(genOneUndistMap(0, p_cam, t[0], imgWidth, imgWidth, f_center));
 
+        Eigen::Quaterniond t0 = t[0];
         if (cam_id == 1) {
             std::cout << "Is camera 1 will invert T" << std::endl;
-            t[0] = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX());
+            t0 = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX());
         };
 
         if (sideImgHeight > 0)
         {
             //facing y
-            t[1] = t[0] * Eigen::AngleAxis<double>(-M_PI / 2, Eigen::Vector3d(1, 0, 0));
+            t[1] = t0 * Eigen::AngleAxis<double>(-M_PI / 2, Eigen::Vector3d(1, 0, 0));
             maps.push_back(genOneUndistMap(1, p_cam, t[1], imgWidth, sideImgHeight, f_side));
 
             //turn right/left?
@@ -293,7 +294,13 @@ public:
         Eigen::Vector2d imgPoint;
         cam->spaceToPlane(pts_cam, imgPoint);
         cv::Point2f pt = fisheye2cam_pt.at<cv::Vec2f>(cv::Point(imgPoint.x(), imgPoint.y()));
-        int id = fisheye2cam_id.at<uint8_t>(cv::Point(imgPoint.x(), imgPoint.y()));
+        int id = 255;
+        if ( !imgPoint.hasNaN() && 
+                imgPoint.x() >= 0 && imgPoint.x() < raw_width &&
+                imgPoint.y() >= 0 && imgPoint.y() < raw_height
+            ) {
+                fisheye2cam_id.at<uint8_t>(cv::Point(imgPoint.x(), imgPoint.y()));
+            }
         if (id != 255) {
             // std::cout << "\n\nPT" << pts_cam << " IMG " << imgPoint << " ID" << id << " PT " << pt << std::endl;
             return std::make_pair(id, pt);
