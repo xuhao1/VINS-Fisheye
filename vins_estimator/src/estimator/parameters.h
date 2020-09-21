@@ -96,6 +96,7 @@ extern double IMAGE_FREQ;
 
 extern int WARN_IMU_DURATION;
 extern int PUB_FLATTEN;
+extern int FLATTEN_COLOR;
 
 void readParameters(std::string config_file);
 

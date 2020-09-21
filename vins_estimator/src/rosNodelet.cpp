@@ -1,4 +1,6 @@
 #include "fisheyeNode.hpp"
+#include <nodelet/nodelet.h>
+#include <pluginlib/class_list_macros.h>
 
 #ifdef USE_BACKWARD
 #define BACKWARD_HAS_DW 1

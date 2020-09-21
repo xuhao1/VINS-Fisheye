@@ -1,6 +1,8 @@
 #include "feature_tracker.h"
 #include "../estimator/estimator.h"
 #include "fisheye_undist.hpp"
+#include "feature_tracker_fisheye.hpp"
+namespace FeatureTracker {
 
 #ifdef WITH_VWORKS
 
@@ -73,7 +75,7 @@ int to_pt_pos_id(const cv::Point2f & pt) {
     return floor(pt.x * 100000) + floor(pt.y*100);
 }
 
-void FeatureTracker::process_vworks_tracking(nvx::FeatureTracker* _tracker, vector<int> & _ids, vector<cv::Point2f> & prev_pts, vector<cv::Point2f> & cur_pts, 
+void FisheyeFeatureTrackerVWorks::process_vworks_tracking(nvx::FeatureTracker* _tracker, vector<int> & _ids, vector<cv::Point2f> & prev_pts, vector<cv::Point2f> & cur_pts, 
         vector<int> &track, vector<cv::Point2f> & n_pts, map<int, int> & _id_by_index, bool debug_output) {
     auto prev_ids = _ids;
     map<int, int> new_id_by_index;
@@ -225,9 +227,8 @@ void FeatureTracker::init_vworks_tracker(cv::cuda::GpuMat & up_top_img, cv::cuda
 
 
 
-FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,   
-        const std::vector<cv::cuda::GpuMat> & fisheye_imgs_up,
-        const std::vector<cv::cuda::GpuMat> & fisheye_imgs_down) {
+FeatureFrame  FisheyeFeatureTrackerVWorks::trackImage(double _cur_time, cv::InputArray fisheye_imgs_up, cv::InputArray fisheye_imgs_down) 
+{
                 cur_time = _cur_time;
 
     TicToc t_r;
@@ -378,6 +379,12 @@ FeatureFrame FeatureTracker::trackImage_fisheye(double _cur_time,
     printf("FT Whole %fms; MainProcess %fms concat %fms PTS %ld T\n", t_r.toc(), tcost_all, concat_cost, ff.size());
     return ff;
 }
+#else 
+
+FeatureFrame FisheyeFeatureTrackerVWorks::trackImage(double _cur_time, cv::InputArray fisheye_imgs_up, cv::InputArray fisheye_imgs_down) {
+    ROS_ERROR("VisionWorks must enable in CMakeLists.txt first!!!");
+    exit(-1);
+}
 
 #endif
-
+};

@@ -1,7 +1,12 @@
 #include "fisheyeNode.hpp"
+#include "featureTracker/feature_tracker_fisheye.hpp"
+#include "featureTracker/fisheye_undist.hpp"
+#include "estimator/estimator.h"
+#include "estimator/parameters.h"
+#include "depth_generation/depth_camera_manager.h"
 
-        
-FisheyeFlattenHandler::FisheyeFlattenHandler(ros::NodeHandle & n): mask_up(5, 0), mask_down(5, 0) 
+using namespace FeatureTracker;     
+FisheyeFlattenHandler::FisheyeFlattenHandler(ros::NodeHandle & n, bool _is_color): mask_up(5, 0), mask_down(5, 0), is_color(_is_color)
 {
 
     readIntrinsicParameter(CAM_NAMES);
@@ -63,56 +68,86 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
 
     TicToc t_f;
 
-
     if (USE_GPU) {
-        is_color = true;
-        fisheye_up_imgs_cuda = fisheys_undists[0].undist_all_cuda(img1, is_color, mask_up); 
-        fisheye_up_imgs_cuda_gray.clear();
-        fisheye_down_imgs_cuda_gray.clear();
+        // is_color = true;
+        if (is_color) {
+            fisheye_up_imgs_cuda = fisheys_undists[0].undist_all_cuda(img1, true, mask_up); 
+            fisheye_down_imgs_cuda = fisheys_undists[1].undist_all_cuda(img2, true, mask_down);
+            fisheye_up_imgs_cuda_gray.clear();
+            fisheye_down_imgs_cuda_gray.clear();
 
 
-        fisheye_down_imgs_cuda = fisheys_undists[1].undist_all_cuda(img2, is_color, mask_down);
-
-        TicToc t_c;
-        for (auto & img: fisheye_up_imgs_cuda) {
-            cv::cuda::GpuMat gray;
-            if(!img.empty()) {
-                cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-            }
-            fisheye_up_imgs_cuda_gray.push_back(gray);
-        }
-
-        for (auto & img: fisheye_down_imgs_cuda) {
-            cv::cuda::GpuMat gray;
-            if(!img.empty()) {
-                cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+            for (auto & img: fisheye_up_imgs_cuda) {
+                cv::cuda::GpuMat gray;
+                if(!img.empty()) {
+                    cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                }
+                fisheye_up_imgs_cuda_gray.push_back(gray);
             }
 
-            fisheye_down_imgs_cuda_gray.push_back(gray);
+            for (auto & img: fisheye_down_imgs_cuda) {
+                cv::cuda::GpuMat gray;
+                if(!img.empty()) {
+                    cv::cuda::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                }
+
+                fisheye_down_imgs_cuda_gray.push_back(gray);
+            }
+        } else {
+            fisheye_up_imgs_cuda_gray = fisheys_undists[0].undist_all_cuda(img1, false, mask_up); 
+            fisheye_down_imgs_cuda_gray = fisheys_undists[1].undist_all_cuda(img2, false, mask_down);
         }
 
         if (!is_blank_init) {
             buf_lock.lock();
-            fisheye_cuda_buf_t.push(t);
+            fisheye_buf_t.push(t);
             fisheye_cuda_buf_up.push(fisheye_up_imgs_cuda_gray);
             fisheye_cuda_buf_down.push(fisheye_down_imgs_cuda_gray);
-
-            fisheye_cuda_buf_up_color.push(fisheye_up_imgs_cuda);
-            fisheye_cuda_buf_down_color.push(fisheye_down_imgs_cuda);
-
+            if(is_color) {
+                fisheye_cuda_buf_up_color.push(fisheye_up_imgs_cuda);
+                fisheye_cuda_buf_down_color.push(fisheye_down_imgs_cuda);
+            }
             buf_lock.unlock();
-        } else {
-            return;
         }
-        
-        if (ENABLE_PERF_OUTPUT) {
-            ROS_INFO("CvtColor %fms", t_c.toc());
+    } else {
+        if (is_color) {
+            fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
+                fisheye_up_imgs, fisheye_down_imgs, true, 
+                enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
+            fisheye_up_imgs_gray.clear();
+            fisheye_down_imgs_gray.clear();
+            for (auto & img: fisheye_up_imgs) {
+                cv::Mat gray;
+                if(!img.empty()) {
+                    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                }
+                fisheye_up_imgs_gray.push_back(gray);
+            }
+
+            for (auto & img: fisheye_down_imgs) {
+                cv::Mat gray;
+                if(!img.empty()) {
+                    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+                }
+                fisheye_down_imgs_gray.push_back(gray);
+            }
+        } else {
+            fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
+                fisheye_up_imgs_gray, fisheye_down_imgs_gray, false, 
+                enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
         }
 
-    } else {
-        fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
-            fisheye_up_imgs, fisheye_down_imgs, false, 
-            enable_up_top, enable_rear_side, enable_down_top, enable_rear_side);
+        buf_lock.lock();
+        fisheye_buf_t.push(t);
+        fisheye_buf_up.push(fisheye_up_imgs_gray);
+        fisheye_buf_down.push(fisheye_down_imgs_gray);
+
+        if (is_color) {
+            fisheye_buf_up_color.push(fisheye_up_imgs);
+            fisheye_buf_down_color.push(fisheye_down_imgs);
+        }
+
+        buf_lock.unlock();
     }
 
     double tf = t_f.toc();
@@ -124,34 +159,71 @@ void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const c
 }
 
 bool FisheyeFlattenHandler::has_image_in_buffer() {
-    return fisheye_cuda_buf_down.size() > 0;
+    return fisheye_buf_t.size() > 0;
 }
 
-std::pair<std::tuple<double, CvCudaImages, CvCudaImages>, std::tuple<double, CvCudaImages, CvCudaImages>> 
-    FisheyeFlattenHandler::pop_from_buffer() {
-    buf_lock.lock();
-    if (fisheye_cuda_buf_t.size() > 0) {
-        auto t = fisheye_cuda_buf_t.front();
-        auto u = fisheye_cuda_buf_up.front();
-        auto d = fisheye_cuda_buf_down.front();
+double FisheyeFlattenHandler::pop_from_buffer(
+            CvCudaImages & up_gray, CvCudaImages & down_gray,
+            CvCudaImages & up_color, CvCudaImages & down_color) {
+    if (USE_GPU) {
+        buf_lock.lock();
+        if (fisheye_buf_t.size() > 0) {
+            auto t = fisheye_buf_t.front();
+            up_gray = fisheye_cuda_buf_up.front();
+            down_gray = fisheye_cuda_buf_down.front();
 
-        auto uc = fisheye_cuda_buf_up_color.front();
-        auto dc = fisheye_cuda_buf_down_color.front();
+            if(is_color) {
+                up_color = fisheye_cuda_buf_up_color.front();
+                down_color = fisheye_cuda_buf_down_color.front();
+            }
 
 
-        fisheye_cuda_buf_t.pop();
-        fisheye_cuda_buf_up.pop();
-        fisheye_cuda_buf_up_color.pop();
-        fisheye_cuda_buf_down.pop();
-        fisheye_cuda_buf_down_color.pop();
-        buf_lock.unlock();
+            fisheye_buf_t.pop();
+            fisheye_cuda_buf_up.pop();
+            fisheye_cuda_buf_down.pop();
 
-        
-        return std::make_pair(std::make_tuple(t, u, d), std::make_tuple(t, uc, dc));
-    } else {
-        buf_lock.unlock();
-        return std::make_pair(std::make_tuple(0.0, CvCudaImages(0), CvCudaImages(0)), std::make_tuple(0.0, CvCudaImages(0), CvCudaImages(0)));
+            if(is_color) {
+                fisheye_cuda_buf_up_color.pop();
+                fisheye_cuda_buf_down_color.pop();
+            }
+
+            buf_lock.unlock();
+            return t;
+        }
     }
+    return -1;
+}
+
+double FisheyeFlattenHandler::pop_from_buffer(
+            CvImages & up_gray, CvImages & down_gray,
+            CvImages & up_color, CvImages & down_color) {
+    if(!USE_GPU) {
+        buf_lock.lock();
+        if (fisheye_buf_t.size() > 0) {
+            auto t = fisheye_buf_t.front();
+
+            up_gray = fisheye_buf_up.front();
+            down_gray = fisheye_buf_down.front();
+
+            if(is_color) {
+                up_color = fisheye_buf_up_color.front();
+                down_color = fisheye_buf_down_color.front();
+            }
+
+            fisheye_buf_t.pop();
+            fisheye_buf_up.pop();
+            fisheye_buf_down.pop();
+
+            if(is_color) {
+                fisheye_buf_up_color.pop();
+                fisheye_buf_down_color.pop();
+            }
+            
+            buf_lock.unlock();
+            return t;
+        }
+    }
+    return -1;
 }
 
 void FisheyeFlattenHandler::setup_extrinsic(vins::FlattenImages & images, const Estimator & estimator) {
@@ -175,10 +247,10 @@ void FisheyeFlattenHandler::setup_extrinsic(vins::FlattenImages & images, const 
     }
 }
 
-void FisheyeFlattenHandler::pack_and_send_cuda(ros::Time stamp, 
-    const CvCudaImages & fisheye_up_imgs_cuda, const CvCudaImages & fisheye_down_imgs_cuda, 
-    const CvCudaImages & fisheye_up_imgs_cuda_gray, const CvCudaImages & fisheye_down_imgs_cuda_gray, 
-    const Estimator & estimator) {
+void FisheyeFlattenHandler::pack_and_send(ros::Time stamp, 
+        cv::InputArray fisheye_up_imgs, cv::InputArray fisheye_down_imgs, 
+        cv::InputArray fisheye_up_imgs_gray, cv::InputArray fisheye_down_imgs_gray, 
+        const Estimator & estimator) {
     TicToc t_p;
     vins::FlattenImages images;
     vins::FlattenImages images_gray;
@@ -192,23 +264,38 @@ void FisheyeFlattenHandler::pack_and_send_cuda(ros::Time stamp,
     static int count = 0;
     count ++;
 
+    CvCudaImages fisheye_up_imgs_cuda, fisheye_down_imgs_cuda;
+    CvCudaImages fisheye_up_imgs_cuda_gray, fisheye_down_imgs_cuda_gray;
+    if (USE_GPU) {
+        fisheye_up_imgs.getGpuMatVector(fisheye_up_imgs_cuda);
+        fisheye_down_imgs.getGpuMatVector(fisheye_down_imgs_cuda);
+
+        fisheye_up_imgs_gray.getGpuMatVector(fisheye_up_imgs_cuda_gray);
+        fisheye_down_imgs_gray.getGpuMatVector(fisheye_down_imgs_cuda_gray);
+    }
+
     for (unsigned int i = 0; i < fisheye_up_imgs_cuda.size(); i++) {
         cv_bridge::CvImage outImg;
         cv_bridge::CvImage outImg_gray;
-        if (is_color) {
-            outImg.encoding = "8UC3";
-        } else {
-            outImg.encoding = "mono8";
-        }
 
+        outImg.encoding = "8UC3";
         outImg_gray.encoding = "mono8";
         TicToc to;
-        fisheye_up_imgs_cuda[i].download(outImg.image);
-        images.up_cams.push_back(*outImg.toImageMsg());
-
-        if (i == 2) {
+        
+        if (USE_GPU) {
+            if (is_color)
+                fisheye_up_imgs_cuda[i].download(outImg.image);
             fisheye_up_imgs_cuda_gray[i].download(outImg_gray.image);
+        } else {
+            if (is_color)
+                outImg.image = fisheye_up_imgs.getMat(i);
+            outImg_gray.image = fisheye_up_imgs_gray.getMat(i);
         }
+        
+        if (is_color) {
+            images.up_cams.push_back(*outImg.toImageMsg());
+        }
+
         images_gray.up_cams.push_back(*outImg_gray.toImageMsg());
     }
 
@@ -216,24 +303,32 @@ void FisheyeFlattenHandler::pack_and_send_cuda(ros::Time stamp,
         cv_bridge::CvImage outImg;
         cv_bridge::CvImage outImg_gray;
 
-        if (is_color) {
-            outImg.encoding = "8UC3";
-        } else {
-            outImg.encoding = "mono8";
-        }
-        
+        outImg.encoding = "8UC3";
         outImg_gray.encoding = "mono8";
-        fisheye_down_imgs_cuda[i].download(outImg.image);
-        images.down_cams.push_back(*outImg.toImageMsg());
-        
-        if (i == 2) {
+
+        if (USE_GPU) {
+            if (is_color) {
+                fisheye_down_imgs_cuda[i].download(outImg.image);
+            }
             fisheye_down_imgs_cuda_gray[i].download(outImg_gray.image);
+        } else {
+            if (is_color) {
+                outImg.image = fisheye_down_imgs.getMat(i);
+            }
+            outImg_gray.image = fisheye_down_imgs_gray.getMat(i);
         }
+        
+        if (is_color) {
+            images.down_cams.push_back(*outImg.toImageMsg());
+        }
+
         images_gray.down_cams.push_back(*outImg_gray.toImageMsg());
     }
 
-    // ROS_INFO("Pack cost %fms", t_p.toc());
-    flatten_pub.publish(images);
+    if (is_color) {
+        flatten_pub.publish(images);
+    }
+
     flatten_gray_pub.publish(images_gray);
     pack_send_time += t_p.toc();
 
@@ -277,15 +372,22 @@ cv_bridge::CvImageConstPtr FisheyeFlattenHandler::getImageFromMsg(const sensor_m
 
 
 void VinsNodeBaseClass::pack_and_send_thread(const ros::TimerEvent & e) {               
-    if (need_to_pack_and_send && std::get<0>(cur_frame) > t_last_send) {
+    if (need_to_pack_and_send && cur_frame_t > t_last_send) {
         //need to pack and send
         pack_and_send_mtx.lock();
-        t_last_send = std::get<0>(cur_frame);
+        t_last_send = cur_frame_t;
         need_to_pack_and_send = false;
-        fisheye_handler->pack_and_send_cuda(ros::Time(t_last_send), 
-            std::get<1>(cur_frame), std::get<2>(cur_frame), 
-            std::get<1>(cur_frame_gray), std::get<2>(cur_frame_gray), 
-            estimator);
+        if (USE_GPU) {
+            fisheye_handler->pack_and_send(ros::Time(t_last_send), 
+                cur_up_color_cuda, cur_down_color_cuda,
+                cur_up_gray_cuda, cur_down_gray_cuda,
+                estimator);
+        } else {
+                fisheye_handler->pack_and_send(ros::Time(t_last_send), 
+                cur_up_color, cur_down_color,
+                cur_up_gray, cur_down_gray,
+                estimator);
+        }
         pack_and_send_mtx.unlock();
     }
 }
@@ -293,19 +395,39 @@ void VinsNodeBaseClass::pack_and_send_thread(const ros::TimerEvent & e) {
 void VinsNodeBaseClass::processFlattened(const ros::TimerEvent & e) {
     TicToc t0;
     if (fisheye_handler->has_image_in_buffer()) {
-        auto ret = fisheye_handler->pop_from_buffer();
-        cur_frame_gray = ret.first;
-        cur_frame = ret.second;
-        bool is_odometry_frame = estimator.is_next_odometry_frame();
-
-        if (is_odometry_frame) {
-            need_to_pack_and_send = true;
-        }
-        estimator.inputFisheyeImage(std::get<0>(cur_frame_gray), std::get<1>(cur_frame_gray), std::get<2>(cur_frame_gray));
-
-        double t_0 = t0.toc();
-        //Need to wait for pack and send to end
         pack_and_send_mtx.lock();
+
+        if (USE_GPU) {
+            cur_frame_t = fisheye_handler->pop_from_buffer(
+                cur_up_gray_cuda,
+                cur_down_gray_cuda,
+                cur_up_color_cuda,
+                cur_down_color_cuda
+            );
+
+            bool is_odometry_frame = estimator.is_next_odometry_frame();
+
+            if (is_odometry_frame) {
+                need_to_pack_and_send = true;
+            }
+            estimator.inputFisheyeImage(cur_frame_t, cur_up_gray_cuda, cur_down_gray_cuda);
+        } else {
+            cur_frame_t = fisheye_handler->pop_from_buffer(
+                cur_up_gray,
+                cur_down_gray,
+                cur_up_color,
+                cur_down_color
+            );
+
+            bool is_odometry_frame = estimator.is_next_odometry_frame();
+
+            if (is_odometry_frame) {
+                need_to_pack_and_send = true;
+            }
+            estimator.inputFisheyeImage(cur_frame_t, cur_up_gray, cur_down_gray);
+        }
+        double t_0 = t0.toc();
+        //Need to wait for pack and send to endft
         pack_and_send_mtx.unlock();
 
         if(ENABLE_PERF_OUTPUT) {
@@ -323,12 +445,6 @@ void VinsNodeBaseClass::fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &
         ROS_WARN("Duration between two images is %fms", img1_msg->header.stamp.toSec() - t_last);
     }
     t_last = img1_msg->header.stamp.toSec();
-
-    if (USE_GPU) {
-    } else {
-        estimator.inputImage(img1_msg->header.stamp.toSec(), cv::Mat(), cv::Mat(), 
-            fisheye_handler->fisheye_up_imgs, fisheye_handler->fisheye_down_imgs);
-    }
 }
 
 void VinsNodeBaseClass::img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
@@ -374,12 +490,23 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     
     std::cout << "config file is " << config_file << '\n';
     readParameters(config_file);
+
     estimator.setParameter();
 
     ROS_INFO("Will %d GPU", USE_GPU);
-    
     if (ENABLE_DEPTH) {
-        cam_manager = new DepthCamManager(n, &(estimator.featureTracker.fisheys_undists[0]));
+        FisheyeUndist *fun = nullptr;
+        if (USE_GPU) {
+            auto ft = (BaseFisheyeFeatureTracker<cv::cuda::GpuMat> *)
+                estimator.featureTracker;
+            fun = ft->get_fisheye_undist(0);
+        } else {
+            auto ft = (BaseFisheyeFeatureTracker<cv::Mat> *)
+                estimator.featureTracker;
+            fun = ft->get_fisheye_undist(0);
+        }
+
+        cam_manager = new DepthCamManager(n, fun);
         cam_manager -> init_with_extrinsic(estimator.ric[0], estimator.tic[0], estimator.ric[1], estimator.tic[1]);
         estimator.depth_cam_manager = cam_manager;
     }
@@ -392,15 +519,18 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     registerPub(n);
 
     if (FISHEYE) {
-        fisheye_handler = new FisheyeFlattenHandler(n);
+        fisheye_handler = new FisheyeFlattenHandler(n, FLATTEN_COLOR);
     }
+
     //We use blank images to initialize cuda before every thing
-    TicToc blank;
-    cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
-    fisheye_handler->img_callback(0, mat, mat, true);
-    estimator.inputFisheyeImage(0, 
+    if (USE_GPU) {
+        TicToc blank;
+        cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
+        fisheye_handler->img_callback(0, mat, mat, true);
+            estimator.inputFisheyeImage(0, 
             fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray, true);
-    std::cout<< "Initialize with blank cost" << blank.toc() << std::endl;
+        std::cout<< "Initialize with blank cost" << blank.toc() << std::endl;
+    }
 
     sub_imu = n.subscribe(IMU_TOPIC, 2000, &VinsNodeBaseClass::imu_callback, (VinsNodeBaseClass*)this, ros::TransportHints().tcpNoDelay(true));
     sub_restart = n.subscribe("/vins_restart", 100, &VinsNodeBaseClass::restart_callback, (VinsNodeBaseClass*)this, ros::TransportHints().tcpNoDelay(true));

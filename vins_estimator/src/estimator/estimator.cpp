@@ -11,6 +11,8 @@
 #include "../utility/visualization.h"
 #include "../featureTracker/fisheye_undist.hpp"
 #include "../depth_generation/depth_camera_manager.h"
+#include "../featureTracker/feature_tracker_fisheye.hpp"
+#include "../featureTracker/feature_tracker_pinhole.hpp"
 
 Estimator::Estimator(): f_manager{Rs}
 {
@@ -25,11 +27,22 @@ Estimator::Estimator(): f_manager{Rs}
     // sum_t_feature = 0.0;
     // begin_time_count = 10;
     initFirstPoseFlag = false;
-    f_manager.ft = &featureTracker;
 }
 
 void Estimator::setParameter()
 {
+     if (FISHEYE) {
+        if (USE_GPU) {
+            featureTracker = new FeatureTracker::FisheyeFeatureTrackerCuda(this);
+        } else {
+            featureTracker = new FeatureTracker::FisheyeFeatureTrackerOpenMP(this);
+        }
+    } else {
+        //Not implement yet
+    }
+
+    f_manager.ft = featureTracker;
+
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         tic[i] = TIC[i];
@@ -43,7 +56,8 @@ void Estimator::setParameter()
     td = TD;
     g = G;
     cout << "set g " << g.transpose() << endl;
-    featureTracker.readIntrinsicParameter(CAM_NAMES);
+    
+    featureTracker->readIntrinsicParameter(CAM_NAMES);
 
     processThread   = std::thread(&Estimator::processMeasurements, this);
     if (FISHEYE && ENABLE_DEPTH) {
@@ -51,9 +65,7 @@ void Estimator::setParameter()
     }
 }
 
-void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1, 
-        const CvImages & fisheye_imgs_up, 
-        const CvImages & fisheye_imgs_down)
+void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
     static int img_track_count = 0;
     static double sum_time = 0;
@@ -61,14 +73,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
     FeatureFrame featureFrame;
     TicToc featureTrackerTime;
 
-    if (FISHEYE) {
-        featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up, fisheye_imgs_down);
-    } else {
-        if(_img1.empty())
-            featureFrame = featureTracker.trackImage(t, _img);
-        else
-            featureFrame = featureTracker.trackImage(t, _img, _img1);
-    }
+    featureFrame = featureTracker->trackImage(t, _img, _img1);
 
     double dt = featureTrackerTime.toc();
     sum_time += dt;
@@ -78,11 +83,6 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1,
     {
         mBuf.lock();
         featureBuf.push(make_pair(t, featureFrame));
-        if (FISHEYE && ENABLE_DEPTH) {
-            fisheye_imgs_upBuf.push(fisheye_imgs_up);
-            fisheye_imgs_downBuf.push(fisheye_imgs_down);
-            fisheye_imgs_stampBuf.push(t);
-        }
         mBuf.unlock();
     }
 }
@@ -103,7 +103,7 @@ void Estimator::inputFisheyeImage(double t, const CvImages & fisheye_imgs_up,
     FeatureFrame featureFrame;
     TicToc featureTrackerTime;
 
-    featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up, fisheye_imgs_down);
+    featureFrame = featureTracker->trackImage(t, fisheye_imgs_up, fisheye_imgs_down);
 
     if(inputImageCnt % 2 == 0)
     {
@@ -142,10 +142,13 @@ void Estimator::inputFisheyeImage(double t, const CvCudaImages & fisheye_imgs_up
     
     FeatureFrame featureFrame;
     TicToc featureTrackerTime;
-
-    featureFrame = featureTracker.trackImage_fisheye(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda, is_blank_init);
+    
     if (is_blank_init) {
-        return;
+        featureFrame = ((FeatureTracker::FisheyeFeatureTrackerCuda*)featureTracker)->
+            trackImage_blank_init(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
+            return;
+    } else {
+        featureFrame = featureTracker->trackImage(t, fisheye_imgs_up_cuda, fisheye_imgs_down_cuda);
     }
 
     if(inputImageCnt % 2 == 0)
@@ -733,7 +736,9 @@ void Estimator::processImage(const FeatureFrame &image, const double header)
         if (ENABLE_PERF_OUTPUT) {
             ROS_INFO("Remove %ld outlier", removeIndex.size());
         }
+        
         f_manager.removeOutlier(removeIndex);
+        predictPtsInNextFrame();
         
         if(ENABLE_PERF_OUTPUT) {
             ROS_INFO("solver costs: %fms", t_solve.toc());
@@ -1730,6 +1735,7 @@ void Estimator::predictPtsInNextFrame()
     getPoseInWorldFrame(frame_count - 1, prevT);
     nextT = curT * (prevT.inverse() * curT);
     map<int, Eigen::Vector3d> predictPts;
+    map<int, Eigen::Vector3d> predictPts1;
 
     for (auto &_it : f_manager.feature)
     {
@@ -1746,13 +1752,14 @@ void Estimator::predictPtsInNextFrame()
                 Vector3d pts_w = Rs[firstIndex] * pts_j + Ps[firstIndex];
                 Vector3d pts_local = nextT.block<3, 3>(0, 0).transpose() * (pts_w - nextT.block<3, 1>(0, 3));
                 Vector3d pts_cam = ric[0].transpose() * (pts_local - tic[0]);
+                Vector3d pts_cam1 = ric[1].transpose() * (pts_local - tic[1]);
                 int ptsIndex = it_per_id.feature_id;
                 predictPts[ptsIndex] = pts_cam;
+                predictPts1[ptsIndex] = pts_cam1;
             }
         }
     }
-    featureTracker.setPrediction(predictPts);
-    //printf("estimator output %d predict pts\n",(int)predictPts.size());
+    featureTracker->setPrediction(predictPts, predictPts1);
 }
 
 double Estimator::reprojectionError(Matrix3d &Ri, Vector3d &Pi, Matrix3d &rici, Vector3d &tici,
