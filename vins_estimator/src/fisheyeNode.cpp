@@ -269,22 +269,32 @@ void FisheyeFlattenHandler::pack_and_send(ros::Time stamp,
     if (USE_GPU) {
         fisheye_up_imgs.getGpuMatVector(fisheye_up_imgs_cuda);
         fisheye_down_imgs.getGpuMatVector(fisheye_down_imgs_cuda);
-
         fisheye_up_imgs_gray.getGpuMatVector(fisheye_up_imgs_cuda_gray);
         fisheye_down_imgs_gray.getGpuMatVector(fisheye_down_imgs_cuda_gray);
+        std::cout << "fisheye_up_imgs_cuda_gray size: " << fisheye_up_imgs_cuda_gray.size() << std::endl;
+
     }
 
-    for (unsigned int i = 0; i < fisheye_up_imgs_cuda.size(); i++) {
+    size_t _size = fisheye_up_imgs_cuda.size();
+    
+    if (!is_color) {
+        _size = fisheye_up_imgs_cuda_gray.size();
+    }
+
+    for (unsigned int i = 0; i < _size; i++) {
         cv_bridge::CvImage outImg;
         cv_bridge::CvImage outImg_gray;
 
         outImg.encoding = "8UC3";
         outImg_gray.encoding = "mono8";
+        outImg.header = images.header;
+        outImg_gray.header = images.header;
         TicToc to;
         
         if (USE_GPU) {
             if (is_color)
                 fisheye_up_imgs_cuda[i].download(outImg.image);
+            // std::cout << "Sending image " << i << " size " << fisheye_up_imgs_cuda_gray[i].size() << std::endl;
             fisheye_up_imgs_cuda_gray[i].download(outImg_gray.image);
         } else {
             if (is_color)
@@ -299,7 +309,7 @@ void FisheyeFlattenHandler::pack_and_send(ros::Time stamp,
         images_gray.up_cams.push_back(*outImg_gray.toImageMsg());
     }
 
-    for (unsigned int i = 0; i < fisheye_down_imgs_cuda.size(); i++) {
+    for (unsigned int i = 0; i < _size; i++) {
         cv_bridge::CvImage outImg;
         cv_bridge::CvImage outImg_gray;
 
