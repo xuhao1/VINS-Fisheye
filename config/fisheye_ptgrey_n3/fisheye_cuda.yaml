@@ -55,7 +55,7 @@ body_T_cam1: !!opencv-matrix
 
 
 
-pub_flatten: 0
+pub_flatten: 1
 flatten_color: 0
 warn_imu_freq: 0
 imu_freq: 400

@@ -281,7 +281,9 @@ void DepthCamManager::update_depth_image(int direction, cv::cuda::GpuMat _up_fro
 
 
     if (pub_cloud_all && RGB_DEPTH_CLOUD == 0) {
-        up_front.download(texture_imgs[direction]);
+        cv::cuda::GpuMat texture;
+        dep_est->remap_texture(up_front, texture);
+        texture.download(texture_imgs[direction]);
     }
 
 
