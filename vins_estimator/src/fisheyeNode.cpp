@@ -271,7 +271,7 @@ void FisheyeFlattenHandler::pack_and_send(ros::Time stamp,
         fisheye_down_imgs.getGpuMatVector(fisheye_down_imgs_cuda);
         fisheye_up_imgs_gray.getGpuMatVector(fisheye_up_imgs_cuda_gray);
         fisheye_down_imgs_gray.getGpuMatVector(fisheye_down_imgs_cuda_gray);
-        std::cout << "fisheye_up_imgs_cuda_gray size: " << fisheye_up_imgs_cuda_gray.size() << std::endl;
+        // std::cout << "fisheye_up_imgs_cuda_gray size: " << fisheye_up_imgs_cuda_gray.size() << std::endl;
 
     }
 
