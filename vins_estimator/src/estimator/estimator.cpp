@@ -358,7 +358,6 @@ void Estimator::processDepthGeneration() {
             header.stamp = ros::Time(t);
 
             TicToc tic_pub;
-            // pubFlattenImages(*this, header, _sync_last_P, Eigen::Quaterniond(_sync_last_R), fisheye_imgs_up, fisheye_imgs_down);
             ROS_INFO("Pub flatten images cost %fms", tic_pub.toc());
 
             fisheye_imgs_up.clear();

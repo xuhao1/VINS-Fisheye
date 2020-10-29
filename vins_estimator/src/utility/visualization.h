@@ -59,11 +59,3 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header);
 void pubTF(const Estimator &estimator, const std_msgs::Header &header);
 
 void pubKeyframe(const Estimator &estimator);
-
-void pubFlattenImages(const Estimator &estimator, const std_msgs::Header &header, 
-    const Eigen::Vector3d & P, const Eigen::Quaterniond & Q, 
-    std::vector<cv::cuda::GpuMat> & up_images, std::vector<cv::cuda::GpuMat> & down_images);
-
-void pubFlattenImages(const Estimator &estimator, const std_msgs::Header &header, 
-    const Eigen::Vector3d & P, const Eigen::Quaterniond & Q, 
-    std::vector<cv::Mat> & up_images, std::vector<cv::Mat> & down_images);
