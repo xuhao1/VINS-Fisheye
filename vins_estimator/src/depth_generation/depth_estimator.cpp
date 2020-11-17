@@ -83,6 +83,10 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
     TicToc remap;
     cv::cuda::remap(left, leftRectify, map11, map12, cv::INTER_LINEAR);
     cv::cuda::remap(right, rightRectify, map21, map22, cv::INTER_LINEAR);
+
+    cv::cuda::normalize(leftRectify, leftRectify, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+    cv::cuda::normalize(rightRectify, rightRectify, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+
     if(ENABLE_PERF_OUTPUT) {
         ROS_INFO("Depth rectify cost %fms", remap.toc());
     }
@@ -101,9 +105,8 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
 
         if (show) {
             cv::Mat disparity_color, disp;
-    	    disparity.convertTo(disp, CV_8U, 255. / params.num_disp);
-
-            cv::applyColorMap(disp, disparity_color, cv::COLORMAP_JET);
+    	    disparity.convertTo(disp, CV_8U, 255. / params.num_disp/16);
+            cv::applyColorMap(disp, disparity_color, cv::COLORMAP_RAINBOW);
 	        disparity.setTo(0, mask);
 	        disparity_color.setTo(cv::Scalar(0, 0, 0), mask);
 
