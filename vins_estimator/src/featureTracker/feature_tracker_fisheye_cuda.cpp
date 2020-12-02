@@ -160,7 +160,7 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
         detected_time_sum = 0;
         ft_time_sum = 0;
         count = 0;
-        auto ff = setup_feature_frame();
+        FeatureFrame ff;
         return ff;
     }
 
