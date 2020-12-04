@@ -161,6 +161,16 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
         ft_time_sum = 0;
         count = 0;
         FeatureFrame ff;
+
+        cur_up_top_pts.clear();
+        ids_up_top.clear();
+        track_up_top_cnt.clear();
+        cur_down_top_pts.clear();
+        ids_down_top.clear();
+        track_down_top_cnt.clear();
+        cur_up_side_pts.clear();
+        ids_up_side.clear();
+        track_up_side_cnt.clear();
         return ff;
     }
 
