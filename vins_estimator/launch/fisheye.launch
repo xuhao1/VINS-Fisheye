@@ -1,8 +1,9 @@
 <launch>
     <arg name="manager"     default="swarm_manager"/>
     <arg name="config_file" default="$(find vins)/../config/fisheye_ptgrey_n3/fisheye_cuda.yaml" />
+    <arg name="output" default="screen" />
     <node pkg="nodelet" type="nodelet" name="vins_estimator" 
-        args="load vins_nodelet_pkg/VinsNodeletClass /$(arg manager) --no-bond" output="screen" >
+        args="load vins_nodelet_pkg/VinsNodeletClass /$(arg manager) --no-bond" output="$(arg output)" >
         <param name="config_file" type="string" value="$(arg config_file)"/>
         <param name="fisheye_external_flatten" type="bool" value="false"/>
     </node>
