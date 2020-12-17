@@ -51,15 +51,15 @@ int FisheyeFlattenHandler::raw_width() {
 }
 
 
-void FisheyeFlattenHandler::img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
+void FisheyeFlattenHandler::imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
 {
     auto img1 = getImageFromMsg(img1_msg);
     auto img2 = getImageFromMsg(img2_msg);
     stamp = img1_msg->header.stamp;
-    img_callback(img1_msg->header.stamp.toSec(), img1->image, img2->image);
+    imgs_callback(img1_msg->header.stamp.toSec(), img1->image, img2->image);
 }
 
-void FisheyeFlattenHandler::img_callback(double t, const cv::Mat & img1, const cv::Mat img2, bool is_blank_init) {
+void FisheyeFlattenHandler::imgs_callback(double t, const cv::Mat & img1, const cv::Mat img2, bool is_blank_init) {
 
     static double flatten_time_sum = 0;
     static double count = 0;
@@ -361,26 +361,6 @@ void FisheyeFlattenHandler::readIntrinsicParameter(const vector<string> &calib_f
 }
 
 
-cv_bridge::CvImageConstPtr FisheyeFlattenHandler::getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
-{
-    cv_bridge::CvImageConstPtr ptr;
-    if (img_msg->encoding == "8UC1")
-    {
-        ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::MONO8);
-    }
-    else
-    {
-        if (FISHEYE) {
-            ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::BGR8);
-        } else {
-            ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::MONO8);        
-        }
-    }
-    return ptr;
-}
-
-
-
 void VinsNodeBaseClass::pack_and_send_thread(const ros::TimerEvent & e) {               
     if (need_to_pack_and_send && cur_frame_t > t_last_send) {
         //need to pack and send
@@ -449,7 +429,7 @@ void VinsNodeBaseClass::processFlattened(const ros::TimerEvent & e) {
 
 void VinsNodeBaseClass::fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg) {
     TicToc tic_input;
-    fisheye_handler->img_callback(img1_msg, img2_msg);
+    fisheye_handler->imgs_callback(img1_msg, img2_msg);
 
     if (img1_msg->header.stamp.toSec() - t_last > 0.11) {
         ROS_WARN("Duration between two images is %fms", img1_msg->header.stamp.toSec() - t_last);
@@ -457,13 +437,33 @@ void VinsNodeBaseClass::fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &
     t_last = img1_msg->header.stamp.toSec();
 }
 
-void VinsNodeBaseClass::img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
+void VinsNodeBaseClass::fisheye_comp_imgs_callback(const sensor_msgs::CompressedImageConstPtr &img1_msg, const sensor_msgs::CompressedImageConstPtr &img2_msg) {
+    TicToc tic_input;
+    auto img1 = getImageFromMsg(img1_msg);
+    auto img2 = getImageFromMsg(img2_msg);
+
+    fisheye_handler->imgs_callback(img1_msg->header.stamp.toSec(), img1, img2);
+
+    if (img1_msg->header.stamp.toSec() - t_last > 0.11) {
+        ROS_WARN("Duration between two images is %fms", img1_msg->header.stamp.toSec() - t_last);
+    }
+    t_last = img1_msg->header.stamp.toSec();
+}
+
+void VinsNodeBaseClass::imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg)
 {
     auto img1 = getImageFromMsg(img1_msg);
     auto img2 = getImageFromMsg(img2_msg);
     estimator.inputImage(img1_msg->header.stamp.toSec(), img1->image, img2->image);
 }
 
+
+void VinsNodeBaseClass::comp_imgs_callback(const sensor_msgs::CompressedImageConstPtr &img1_msg, const sensor_msgs::CompressedImageConstPtr &img2_msg)
+{
+    auto img1 = getImageFromMsg(img1_msg);
+    auto img2 = getImageFromMsg(img2_msg);
+    estimator.inputImage(img1_msg->header.stamp.toSec(), img1, img2);
+}
 
 void VinsNodeBaseClass::imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -536,7 +536,7 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     if (USE_GPU) {
         TicToc blank;
         cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
-        fisheye_handler->img_callback(0, mat, mat, true);
+        fisheye_handler->imgs_callback(0, mat, mat, true);
             estimator.inputFisheyeImage(0, 
             fisheye_handler->fisheye_up_imgs_cuda_gray, fisheye_handler->fisheye_down_imgs_cuda_gray, true);
         std::cout<< "Initialize with blank cost" << blank.toc() << std::endl;
@@ -545,19 +545,31 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     sub_imu = n.subscribe(IMU_TOPIC, 2000, &VinsNodeBaseClass::imu_callback, (VinsNodeBaseClass*)this, ros::TransportHints().tcpNoDelay(true));
     sub_restart = n.subscribe("/vins_restart", 100, &VinsNodeBaseClass::restart_callback, (VinsNodeBaseClass*)this, ros::TransportHints().tcpNoDelay(true));
 
-    ROS_INFO("Will directly receive raw images");
-    image_sub_l = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE0_TOPIC, 1000, ros::TransportHints().tcpNoDelay(true));
-    image_sub_r = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE1_TOPIC, 1000, ros::TransportHints().tcpNoDelay(true));
-    sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> (*image_sub_l, *image_sub_r, 1000);
+    if (IS_COMP_IMAGES) {
+        ROS_INFO("Will directly receive compressed images %s and %s", COMP_IMAGE0_TOPIC.c_str(), COMP_IMAGE1_TOPIC.c_str());
+        comp_image_sub_l = new message_filters::Subscriber<sensor_msgs::CompressedImage> (n, COMP_IMAGE0_TOPIC, 1000, ros::TransportHints().tcpNoDelay(true));
+        comp_image_sub_r = new message_filters::Subscriber<sensor_msgs::CompressedImage> (n, COMP_IMAGE1_TOPIC, 1000, ros::TransportHints().tcpNoDelay(true));
+        comp_sync = new message_filters::TimeSynchronizer<sensor_msgs::CompressedImage, sensor_msgs::CompressedImage> (*comp_image_sub_l, *comp_image_sub_r, 1000);
+        if (FISHEYE) {
+            comp_sync->registerCallback(boost::bind(&VinsNodeBaseClass::fisheye_comp_imgs_callback, (VinsNodeBaseClass*)this, _1, _2));
+        } else {    
+            comp_sync->registerCallback(boost::bind(&VinsNodeBaseClass::comp_imgs_callback, (VinsNodeBaseClass*)this, _1, _2));
+        }
+    } else {
+        ROS_INFO("Will directly receive raw images %s and %s", IMAGE0_TOPIC.c_str(), IMAGE1_TOPIC.c_str());
+        image_sub_l = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE0_TOPIC, 1000, ros::TransportHints().tcpNoDelay(true));
+        image_sub_r = new message_filters::Subscriber<sensor_msgs::Image> (n, IMAGE1_TOPIC, 1000, ros::TransportHints().tcpNoDelay(true));
+        sync = new message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> (*image_sub_l, *image_sub_r, 1000);
+        if (FISHEYE) {
+            sync->registerCallback(boost::bind(&VinsNodeBaseClass::fisheye_imgs_callback, (VinsNodeBaseClass*)this, _1, _2));
+        } else {    
+            sync->registerCallback(boost::bind(&VinsNodeBaseClass::imgs_callback, (VinsNodeBaseClass*)this, _1, _2));
+        }
+    }
+
 
     timer1 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::processFlattened, (VinsNodeBaseClass*)this, _1 ));
     if (PUB_FLATTEN) {
         timer2 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::pack_and_send_thread, (VinsNodeBaseClass*)this, _1 ));
-    }
-    
-    if (FISHEYE) {
-        sync->registerCallback(boost::bind(&VinsNodeBaseClass::fisheye_imgs_callback, (VinsNodeBaseClass*)this, _1, _2));
-    } else {    
-        sync->registerCallback(boost::bind(&VinsNodeBaseClass::img_callback, (VinsNodeBaseClass*)this, _1, _2));
     }
 }

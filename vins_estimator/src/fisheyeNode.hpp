@@ -15,6 +15,7 @@
 #include "utility/ros_utility.h"
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
+#include <sensor_msgs/CompressedImage.h>
 
 class Estimator;
 class FisheyeUndist;
@@ -59,9 +60,9 @@ class FisheyeFlattenHandler
         FisheyeFlattenHandler(ros::NodeHandle & n, bool _is_color = true);
 
 
-        void img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg);
+        void imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg);
 
-        void img_callback(double t, const cv::Mat & img1, const cv::Mat img2, bool is_blank_init = false);
+        void imgs_callback(double t, const cv::Mat & img1, const cv::Mat img2, bool is_blank_init = false);
 
         bool has_image_in_buffer();
 
@@ -83,14 +84,18 @@ class FisheyeFlattenHandler
 
         void readIntrinsicParameter(const vector<string> &calib_file);
 
-        cv_bridge::CvImageConstPtr getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg);
 };
 
 
 class VinsNodeBaseClass {
         message_filters::Subscriber<sensor_msgs::Image> * image_sub_l;
         message_filters::Subscriber<sensor_msgs::Image> * image_sub_r;
-    
+        message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> * sync;
+
+        message_filters::Subscriber<sensor_msgs::CompressedImage> * comp_image_sub_l;
+        message_filters::Subscriber<sensor_msgs::CompressedImage> * comp_image_sub_r;
+        message_filters::TimeSynchronizer<sensor_msgs::CompressedImage, sensor_msgs::CompressedImage> * comp_sync;
+
         FisheyeFlattenHandler * fisheye_handler;
         ros::Timer timer1, timer2;
 
@@ -121,7 +126,6 @@ class VinsNodeBaseClass {
         ros::Subscriber sub_restart;
         ros::Subscriber flatten_sub;
 
-        message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> * sync;
     protected:
 
         void pack_and_send_thread(const ros::TimerEvent & e);
@@ -129,9 +133,13 @@ class VinsNodeBaseClass {
         void processFlattened(const ros::TimerEvent & e);
 
         void fisheye_imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg);
-
-        void img_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg);
         
+        void fisheye_comp_imgs_callback(const sensor_msgs::CompressedImageConstPtr &img1_msg, const sensor_msgs::CompressedImageConstPtr &img2_msg);
+
+        void imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg, const sensor_msgs::ImageConstPtr &img2_msg);
+        
+        void comp_imgs_callback(const sensor_msgs::CompressedImageConstPtr &img1_msg, const sensor_msgs::CompressedImageConstPtr &img2_msg);
+
         void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg);
 
         void restart_callback(const std_msgs::BoolConstPtr &restart_msg);

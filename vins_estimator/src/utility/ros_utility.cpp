@@ -37,7 +37,13 @@ cv_bridge::CvImageConstPtr getImageFromMsg(const sensor_msgs::Image &img_msg)
     return nullptr;
 }
 
+cv::Mat getImageFromMsg(const sensor_msgs::CompressedImageConstPtr &img_msg, int flag) {
+    return cv::imdecode(img_msg->data, flag);
+}
 
+cv::Mat getImageFromMsg(const sensor_msgs::CompressedImage &img_msg, int flag) {
+    return cv::imdecode(img_msg.data, flag);
+}
 
 geometry_msgs::Pose pose_from_PQ(Eigen::Vector3d P, 
     const Eigen::Quaterniond & Q) {

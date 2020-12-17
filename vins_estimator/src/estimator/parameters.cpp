@@ -60,6 +60,8 @@ Eigen::Matrix3d rectify_R_left;
 Eigen::Matrix3d rectify_R_right;
 map<int, Eigen::Vector3d> pts_gt;
 std::string IMAGE0_TOPIC, IMAGE1_TOPIC;
+std::string COMP_IMAGE0_TOPIC, COMP_IMAGE1_TOPIC;
+int IS_COMP_IMAGES;
 std::string FISHEYE_MASK;
 std::vector<std::string> CAM_NAMES;
 std::string depth_config;
@@ -121,6 +123,10 @@ void readParameters(std::string config_file)
 
     fsSettings["image0_topic"] >> IMAGE0_TOPIC;
     fsSettings["image1_topic"] >> IMAGE1_TOPIC;
+
+    fsSettings["compressed_image0_topic"] >> COMP_IMAGE0_TOPIC;
+    fsSettings["compressed_image1_topic"] >> COMP_IMAGE1_TOPIC;
+    IS_COMP_IMAGES = fsSettings["is_compressed_images"];
     MAX_CNT = fsSettings["max_cnt"];
     TOP_PTS_CNT = fsSettings["top_cnt"];
     SIDE_PTS_CNT = fsSettings["side_cnt"];
