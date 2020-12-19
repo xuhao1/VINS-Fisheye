@@ -431,7 +431,7 @@ void DepthCamManager::add_pts_point_cloud(const cv::Mat & pts3d, Eigen::Matrix3d
             double z = vec[2];
             Vector3d pts_i(x, y, z);
 
-            if (pts_i.norm() < depth_cloud_radius) {
+            if (pts_i.norm() < depth_cloud_radius && pts_i.z() > min_z) {
                 Vector3d w_pts_i = R * pts_i + P;
                 // Vector3d w_pts_i = pts_i;
 

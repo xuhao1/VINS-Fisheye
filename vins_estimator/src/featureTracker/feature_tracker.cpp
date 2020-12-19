@@ -362,15 +362,15 @@ void BaseFeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, 
 	    cv::putText(img, idtext, pts[j] - cv::Point2f(5, 0), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
     }
 
-    for (auto it : predictions) {
-        auto _id = it.first;
-        auto pt = it.second;
-        cv::Scalar color(255, 255, 0);
-        cv::circle(img, pt, 1, color, 2);
+    // for (auto it : predictions) {
+    //     auto _id = it.first;
+    //     auto pt = it.second;
+    //     cv::Scalar color(255, 255, 0);
+    //     cv::circle(img, pt, 1, color, 2);
 
-        sprintf(idtext, "P%d", _id);
-	    cv::putText(img, idtext, pt + cv::Point2f(5, 5), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
-    }
+    //     sprintf(idtext, "P%d", _id);
+	//     cv::putText(img, idtext, pt + cv::Point2f(5, 5), cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
+    // }
 
     for (size_t i = 0; i < ids.size(); i++)
     {

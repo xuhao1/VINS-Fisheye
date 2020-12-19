@@ -26,13 +26,15 @@ cv::cuda::GpuMat concat_side(const std::vector<cv::cuda::GpuMat> & arr) {
     if (enable_rear_side) {
         cv::cuda::GpuMat NewImg(rows, cols*4, arr[1].type()); 
         for (int i = 1; i < 5; i ++) {
-            arr[i].copyTo(NewImg(cv::Rect(cols * (i-1), 0, cols, rows)));
+            if (!arr[i].empty())
+                arr[i].copyTo(NewImg(cv::Rect(cols * (i-1), 0, cols, rows)));
         }
         return NewImg;
     } else {
         cv::cuda::GpuMat NewImg(rows, cols*3, arr[1].type()); 
         for (int i = 1; i < 4; i ++) {
-            arr[i].copyTo(NewImg(cv::Rect(cols * (i-1), 0, cols, rows)));
+            if (!arr[i].empty())
+                arr[i].copyTo(NewImg(cv::Rect(cols * (i-1), 0, cols, rows)));
         }
         return NewImg;
     }
@@ -66,8 +68,16 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     img1.getGpuMatVector(fisheye_imgs_up);
     img2.getGpuMatVector(fisheye_imgs_down);
     TicToc t_r;
-    cv::cuda::GpuMat up_side_img = concat_side(fisheye_imgs_up);
-    cv::cuda::GpuMat down_side_img = concat_side(fisheye_imgs_down);
+    cv::cuda::GpuMat up_side_img;
+    cv::cuda::GpuMat down_side_img;
+
+    if (enable_up_side) {
+        up_side_img = concat_side(fisheye_imgs_up);
+    }
+    if (enable_down_side) {
+        down_side_img = concat_side(fisheye_imgs_down);
+    }
+    
     cv::cuda::GpuMat & up_top_img = fisheye_imgs_up[0];
     cv::cuda::GpuMat & down_top_img = fisheye_imgs_down[0];
     double concat_cost = t_r.toc();
