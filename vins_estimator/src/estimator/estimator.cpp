@@ -400,7 +400,7 @@ void Estimator::processMeasurements()
             if(USE_IMU) {
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
                 if (curTime - prevTime > 0.11 || accVector.size()/(curTime - prevTime ) < 350) {
-                    ROS_WARN("Long IMU dt %fms or wrong IMU rate %fms", curTime - prevTime, accVector.size()/(curTime - prevTime));
+                    ROS_WARN("Long IMU dt %fms or wrong IMU rate %fhz", (curTime - prevTime)*1000, accVector.size()/(curTime - prevTime));
                 } 
             }
 
