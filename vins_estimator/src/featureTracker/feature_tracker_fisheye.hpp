@@ -29,6 +29,7 @@ public:
 protected:
     virtual FeatureFrame setup_feature_frame() override;
     
+    std::mutex set_predict_lock;
 
     void addPointsFisheye();
 
@@ -166,6 +167,7 @@ std::vector<cv::Mat> convertCPUMat(const std::vector<cv::cuda::GpuMat> & arr);
 template<class CvMat>
 void BaseFisheyeFeatureTracker<CvMat>::setPrediction(const map<int, Eigen::Vector3d> &predictPts_cam0, const map<int, Eigen::Vector3d> &predictPts_cam1) {
     // std::cout << 
+    set_predict_lock.lock();
     predict_up_top.clear();
     predict_up_side.clear();
     predict_down_top.clear();
@@ -198,7 +200,7 @@ void BaseFisheyeFeatureTracker<CvMat>::setPrediction(const map<int, Eigen::Vecto
             } 
         }
     }
-
+    set_predict_lock.unlock();
 }
 
 template<class CvMat>

@@ -112,6 +112,7 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
         cv::cuda::cvtColor(down_side_img, down_side_img, cv::COLOR_BGR2GRAY);
     }
 
+    set_predict_lock.lock();
     if (enable_up_top) {
         // ROS_INFO("Tracking top");
         cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_pyr, prev_up_top_pts, 
@@ -126,7 +127,8 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
         cur_down_top_pts = opticalflow_track(down_top_img, prev_down_top_pyr, prev_down_top_pts, 
             ids_down_top, track_down_top_cnt, removed_pts, false, predict_down_top);
     }
-    
+    set_predict_lock.unlock();
+
     ft_time_sum += t_ft.toc();
     // setMaskFisheye();
 
