@@ -118,9 +118,17 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
         cur_up_top_pts = opticalflow_track(up_top_img, prev_up_top_pyr, prev_up_top_pts, 
             ids_up_top, track_up_top_cnt, removed_pts, false, predict_up_top);
     }
-    if (enable_up_side) {
-        cur_up_side_pts = opticalflow_track(up_side_img, prev_up_side_pyr, prev_up_side_pts, 
-            ids_up_side, track_up_side_cnt, removed_pts, false, predict_up_side);
+
+    if (SIDE_MAIN_CAM == 0) {
+        if (enable_up_side) {
+            cur_up_side_pts = opticalflow_track(up_side_img, prev_main_side_pyr, prev_up_side_pts, 
+                ids_up_side, track_up_side_cnt, removed_pts, false, predict_up_side);
+        }
+    } else {
+        if (enable_down_side) {
+            cur_down_side_pts = opticalflow_track(down_side_img, prev_main_side_pyr, prev_down_side_pts, 
+                ids_down_side, track_down_side_cnt, removed_pts, false, predict_down_side);
+        }
     }
 
     if (enable_down_top) {
@@ -144,8 +152,14 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
         detectPoints(down_top_img, n_pts_down_top, cur_down_top_pts, TOP_PTS_CNT);
     }
 
-    if (enable_up_side) {
-        detectPoints(up_side_img, n_pts_up_side, cur_up_side_pts, SIDE_PTS_CNT);
+    if (SIDE_MAIN_CAM == 0) {
+        if (enable_up_side) {
+            detectPoints(up_side_img, n_pts_up_side, cur_up_side_pts, SIDE_PTS_CNT);
+        }
+    } else {
+        if (enable_down_side) {
+            detectPoints(down_side_img, n_pts_down_side, cur_down_side_pts, SIDE_PTS_CNT);
+        }
     }
 
 
@@ -158,10 +172,18 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
 
     TicToc tic2;
     if (enable_down_side) {
-        ids_down_side = ids_up_side;
-        std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
-        cur_down_side_pts = opticalflow_track(down_side_img, prev_up_side_pyr, down_side_init_pts, ids_down_side, 
-            track_down_side_cnt, removed_pts, true, predict_down_side);
+        if (SIDE_MAIN_CAM == 0) {
+            ids_down_side = ids_up_side;
+            std::vector<cv::Point2f> down_side_init_pts = cur_up_side_pts;
+            cur_down_side_pts = opticalflow_track(down_side_img, prev_main_side_pyr, down_side_init_pts, ids_down_side, 
+                track_down_side_cnt, removed_pts, true, predict_down_side);
+        } else {
+            ids_up_side = ids_down_side;
+            std::vector<cv::Point2f> up_side_init_pts = cur_down_side_pts;
+            ROS_INFO("up_side_init_pts %d ids_up_side %d", up_side_init_pts.size(), ids_up_side.size());
+            cur_up_side_pts = opticalflow_track(up_side_img, prev_main_side_pyr, up_side_init_pts, ids_up_side, 
+                track_up_side_cnt, removed_pts, true, predict_up_side);
+        }
         ft_time_sum += tic2.toc();
         if (ENABLE_PERF_OUTPUT) {
             ROS_INFO("Optical flow 2 %fms", tic2.toc());
@@ -230,9 +252,16 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     // hasPrediction = false;
     auto ff = setup_feature_frame();
 
+    int stereo_pts = cur_down_side_un_pts.size();
+    int side_pts = cur_up_side_un_pts.size();
+    if (SIDE_MAIN_CAM == 0) {
+        stereo_pts = cur_up_side_un_pts.size();
+        side_pts = cur_down_side_un_pts.size();
+
+    }
     printf("FT Whole %3.1fms; PTS %ld, STEREO %ld; Detect AVG %3.1fms OpticalFlow %3.1fms concat %3.1fms\n", 
         t_r.toc(), 
-        cur_up_top_un_pts.size() + cur_up_side_un_pts.size(),
+        cur_up_top_un_pts.size() + side_pts,
         cur_down_side_un_pts.size(),
         detected_time_sum/count, 
         ft_time_sum/count,

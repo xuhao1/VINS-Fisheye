@@ -100,6 +100,8 @@ extern int PUB_FLATTEN;
 extern int FLATTEN_COLOR;
 extern int IS_COMP_IMAGES;
 
+extern int SIDE_MAIN_CAM;
+
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

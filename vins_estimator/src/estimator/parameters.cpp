@@ -18,6 +18,7 @@ double triangulate_max_err = 0.5;
 
 double IMU_FREQ;
 double IMAGE_FREQ;
+int SIDE_MAIN_CAM;
 
 std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
@@ -156,6 +157,7 @@ void readParameters(std::string config_file)
     enable_down_top = fsSettings["enable_down_top"];
     enable_down_side = fsSettings["enable_down_side"];
     enable_rear_side = fsSettings["enable_rear_side"];
+    SIDE_MAIN_CAM = fsSettings["side_main_cam"];
     depth_estimate_baseline = fsSettings["depth_estimate_baseline"];
     ENABLE_PERF_OUTPUT = fsSettings["enable_perf_output"];
 

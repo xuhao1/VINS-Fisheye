@@ -50,7 +50,7 @@ protected:
     cv::Size top_size;
     cv::Size side_size;
 
-    vector<cv::Point2f> n_pts_up_top, n_pts_down_top, n_pts_up_side;
+    vector<cv::Point2f> n_pts_up_top, n_pts_down_top, n_pts_up_side, n_pts_down_side;
     std::map<int, cv::Point2f> predict_up_side, predict_up_top, predict_down_top, predict_down_side;
     vector<cv::Point2f> prev_up_top_pts, cur_up_top_pts, prev_up_side_pts, cur_up_side_pts, prev_down_top_pts, prev_down_side_pts;
     
@@ -109,7 +109,7 @@ protected:
                             cv::cuda::GpuMat imDownTop,
                             cv::cuda::GpuMat imUpSide, 
                             cv::cuda::GpuMat imDownSide);
-    std::vector<cv::cuda::GpuMat> prev_up_top_pyr, prev_down_top_pyr, prev_up_side_pyr;
+    std::vector<cv::cuda::GpuMat> prev_up_top_pyr, prev_down_top_pyr, prev_main_side_pyr;
 
 };
 
@@ -122,7 +122,7 @@ class FisheyeFeatureTrackerOpenMP: public BaseFisheyeFeatureTracker<cv::Mat> {
 
         virtual FeatureFrame trackImage(double _cur_time, cv::InputArray fisheye_imgs_up, cv::InputArray fisheye_imgs_down) override;
     protected:
-        std::vector<cv::Mat> * prev_up_top_pyr = nullptr, * prev_down_top_pyr = nullptr, * prev_up_side_pyr = nullptr;
+        std::vector<cv::Mat> * prev_up_top_pyr = nullptr, * prev_down_top_pyr = nullptr, * prev_main_side_pyr = nullptr;
 
 };
 
@@ -405,11 +405,20 @@ void BaseFisheyeFeatureTracker<CvMat>::addPointsFisheye()
         track_down_top_cnt.push_back(1);
     }
 
-    for (auto p : n_pts_up_side)
-    {
-        cur_up_side_pts.push_back(p);
-        ids_up_side.push_back(n_id++);
-        track_up_side_cnt.push_back(1);
+    if (SIDE_MAIN_CAM == 0) {
+        for (auto p : n_pts_up_side)
+        {
+            cur_up_side_pts.push_back(p);
+            ids_up_side.push_back(n_id++);
+            track_up_side_cnt.push_back(1);
+        }
+    } else {
+        for (auto p : n_pts_down_side)
+        {
+            cur_down_side_pts.push_back(p);
+            ids_down_side.push_back(n_id++);
+            track_down_side_cnt.push_back(1);
+        }
     }
 }
 
