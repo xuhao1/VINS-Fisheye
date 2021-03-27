@@ -570,6 +570,6 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
 
     timer1 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::processFlattened, (VinsNodeBaseClass*)this, _1 ));
     if (PUB_FLATTEN) {
-        timer2 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::pack_and_send_thread, (VinsNodeBaseClass*)this, _1 ));
+        timer2 = n.createTimer(ros::Duration(1/PUB_FLATTEN_FREQ), boost::bind(&VinsNodeBaseClass::pack_and_send_thread, (VinsNodeBaseClass*)this, _1 ));
     }
 }
