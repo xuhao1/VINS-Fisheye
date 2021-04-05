@@ -127,7 +127,7 @@ pub_cloud_all: 1
 pub_cloud_per_direction: 0
 
 ```
-# Related Paprt
+# Related Paper
 __Omni-swarm: A Decentralized Omnidirectional Visual-Inertial-UWB State Estimation System for Aerial Swarm__ The VINS-Fisheye is a part of Omni-swarm. If you want use VIN-Fisheye as a part of your research project, please cite this paper.
 
 
