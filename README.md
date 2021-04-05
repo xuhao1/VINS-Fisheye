@@ -1,5 +1,5 @@
 # VINS-Fisheye
-This repository is a Fisheye version of [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion) with GPU and Visionworks acceleration. It can run on Nvidia TX2 in real-time, also provide depth estimation based on fisheye. This project stands as a part of [Omni-swarm](https://arxiv.org/abs/2103.04131): A Decentralized Omnidirectional Visual-Inertial-UWB State Estimation System for Aerial Swarm. You may use it alone on any type of robot or as a part of Omni-swarm for swarm robots.
+This repository is a Fisheye version of [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion) with GPU and Visionworks acceleration. It can run on Nvidia TX2 in real-time, also provide depth estimation based on fisheye. This project stands as a part of __[Omni-swarm](https://arxiv.org/abs/2103.04131): A Decentralized Omnidirectional Visual-Inertial-UWB State Estimation System for Aerial Swarm__. You may use it alone on any type of robot or as a part of Omni-swarm for swarm robots.
 
 Only stereo visual-inertial-odometry is supported for fisheye cameras now. Loop closure module for fisheye camera will release later.
 
