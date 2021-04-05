@@ -15,14 +15,14 @@ output_path: "/home/xuhao/output"
 depth_config: "depth_cuda.yaml"
 cam0_calib: "up.yaml"
 cam1_calib: "down.yaml"
-image_width: 400 # For fisheye, this indicate the flattened image width; min 100; 300 - 500 is good for vins
+image_width: 600 # For fisheye, this indicate the flattened image width; min 100; 300 - 500 is good for vins
 image_height: 200
-show_width: 1080
+show_width: 1920
 
 fisheye_fov: 235
 
 enable_up_top: 1
-enable_down_top: 0
+enable_down_top: 1
 enable_up_side: 1
 enable_down_side: 1  
 enable_rear_side: 0
@@ -55,25 +55,12 @@ body_T_cam1: !!opencv-matrix
 
 
 
+pub_flatten: 1
+flatten_color: 0
+warn_imu_freq: 0
+imu_freq: 400
+image_freq: 20
 
-# body_T_cam0: !!opencv-matrix
-#    rows: 4
-#    cols: 4
-#    dt: d
-#    data: [1, 0, 0, 0.0392,
-#          0, 1, 0, 0.0170,
-#          0, 0, 1, 0.0662, 
-#          0., 0., 0., 1 ]
-# body_T_cam1: !!opencv-matrix
-#    rows: 4
-#    cols: 4
-#    dt: d
-#    data: [1, 0, 0, 0.0392,
-#          0, -1, 0, 0.0170,
-#          0, 0, -1, -0.0540, 
-#          0., 0., 0., 1 ]
-
-#Multiple thread support
 multiple_thread: 1
 #Gpu accleration support
 
@@ -86,16 +73,16 @@ rgb_depth_cloud: -1 # -1: point no texture,  0 depth cloud will be gray, 1 depth
 
 depth_estimate_baseline: 0.05
 top_cnt: 30
-side_cnt: 30
-max_solve_cnt: 30 # Max Point for solve; highly influence performace
+side_cnt: 100
+max_solve_cnt: 100 # Max Point for solve; highly influence performace
 
 # min_dist: 20            # min distance between two features, this is for GFTT
 min_dist: 20            # for vworks
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
-show_track: 0           # publish tracking image as topic
-flow_back: 0           # perform forward and backward optical flow to improve feature tracking accuracy
-enable_perf_output: 1
+show_track: 1           # publish tracking image as topic
+flow_back: 1           # perform forward and backward optical flow to improve feature tracking accuracy
+enable_perf_output: 0
 
 #optimization parameters
 max_solver_time: 0.04 # max solver itration time (ms), to guarantee real time

@@ -53,7 +53,7 @@ extern double TD;
 extern double depth_estimate_baseline;
 extern int ESTIMATE_TD;
 extern int ROLLING_SHUTTER;
-extern int ROW, COL;
+extern int ROW, WIDTH;
 extern int SHOW_WIDTH;
 extern int NUM_OF_CAM;
 extern int STEREO;
@@ -80,7 +80,8 @@ extern Eigen::Matrix3d rectify_R_right;
 extern map<int, Eigen::Vector3d> pts_gt;
 
 extern std::string IMAGE0_TOPIC, IMAGE1_TOPIC;
-extern std::string FISHEYE_MASK;
+extern std::string COMP_IMAGE0_TOPIC, COMP_IMAGE1_TOPIC;
+
 extern std::vector<std::string> CAM_NAMES;
 extern int MAX_CNT;
 extern int TOP_PTS_CNT;
@@ -88,9 +89,17 @@ extern int SIDE_PTS_CNT;
 extern int MAX_SOLVE_CNT;
 
 extern int MIN_DIST;
-extern double F_THRESHOLD;
 extern int SHOW_TRACK;
 extern int FLOW_BACK;
+
+extern double IMU_FREQ;
+extern double IMAGE_FREQ;
+
+extern int WARN_IMU_DURATION;
+extern int PUB_FLATTEN;
+extern int FLATTEN_COLOR;
+extern int IS_COMP_IMAGES;
+extern int PUB_FLATTEN_FREQ;
 
 void readParameters(std::string config_file);
 

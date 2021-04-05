@@ -52,13 +52,11 @@ class Estimator
     void initFirstPose(Eigen::Vector3d p, Eigen::Matrix3d r);
     void inputIMU(double t, const Vector3d &linearAcceleration, const Vector3d &angularVelocity);
     void inputFeature(double t, const FeatureFrame &featureFrame);
-    void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat(), 
-        const CvImages & up_imgs = CvImages(0), 
-        const CvImages & down_imgs = CvImages(0));
+    void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
 
     bool is_next_odometry_frame();
     void inputFisheyeImage(double t, const CvCudaImages & up_imgs, const CvCudaImages & down_imgs, bool is_blank_init = false);
-
+    void inputFisheyeImage(double t, const CvImages & fisheye_imgs_up, const CvImages & fisheye_imgs_down);
     void processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const FeatureFrame &image, const double header);
     void processMeasurements();
@@ -115,7 +113,7 @@ class Estimator
     std::thread processThread;
     std::thread depthThread;
 
-    FeatureTracker featureTracker;
+    FeatureTracker::BaseFeatureTracker * featureTracker = nullptr;
 
     SolverFlag solver_flag;
     MarginalizationFlag  marginalization_flag;
@@ -135,7 +133,7 @@ class Estimator
     Vector3d back_P0, last_P, last_P0;
     double Headers[(WINDOW_SIZE + 1)];
 
-    IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)];
+    IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)] = {0};
     Vector3d acc_0, gyr_0;
 
     vector<double> dt_buf[(WINDOW_SIZE + 1)];
@@ -174,11 +172,11 @@ class Estimator
 
     int loop_window_index;
 
-    MarginalizationInfo *last_marginalization_info;
+    MarginalizationInfo *last_marginalization_info = nullptr;
     vector<double *> last_marginalization_parameter_blocks;
 
     map<double, ImageFrame> all_image_frame;
-    IntegrationBase *tmp_pre_integration;
+    IntegrationBase *tmp_pre_integration = nullptr;
 
     Eigen::Vector3d initP;
     Eigen::Matrix3d initR;

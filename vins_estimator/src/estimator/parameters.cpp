@@ -16,6 +16,9 @@ double GYR_N, GYR_W;
 double THRES_OUTLIER;
 double triangulate_max_err = 0.5;
 
+double IMU_FREQ;
+double IMAGE_FREQ;
+
 std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
 
@@ -32,7 +35,7 @@ std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
 std::string OUTPUT_FOLDER;
 std::string IMU_TOPIC;
-int ROW, COL;
+int ROW, WIDTH;
 int SHOW_WIDTH;
 double TD;
 int NUM_OF_CAM;
@@ -57,6 +60,8 @@ Eigen::Matrix3d rectify_R_left;
 Eigen::Matrix3d rectify_R_right;
 map<int, Eigen::Vector3d> pts_gt;
 std::string IMAGE0_TOPIC, IMAGE1_TOPIC;
+std::string COMP_IMAGE0_TOPIC, COMP_IMAGE1_TOPIC;
+int IS_COMP_IMAGES;
 std::string FISHEYE_MASK;
 std::vector<std::string> CAM_NAMES;
 std::string depth_config;
@@ -71,6 +76,11 @@ int MIN_DIST;
 double F_THRESHOLD;
 int SHOW_TRACK;
 int FLOW_BACK;
+
+int WARN_IMU_DURATION;
+int PUB_FLATTEN;
+int FLATTEN_COLOR;
+int PUB_FLATTEN_FREQ;
 
 std::string configPath;
 
@@ -114,15 +124,17 @@ void readParameters(std::string config_file)
 
     fsSettings["image0_topic"] >> IMAGE0_TOPIC;
     fsSettings["image1_topic"] >> IMAGE1_TOPIC;
+
+    fsSettings["compressed_image0_topic"] >> COMP_IMAGE0_TOPIC;
+    fsSettings["compressed_image1_topic"] >> COMP_IMAGE1_TOPIC;
+    IS_COMP_IMAGES = fsSettings["is_compressed_images"];
     MAX_CNT = fsSettings["max_cnt"];
     TOP_PTS_CNT = fsSettings["top_cnt"];
     SIDE_PTS_CNT = fsSettings["side_cnt"];
     MAX_SOLVE_CNT = fsSettings["max_solve_cnt"];
     MIN_DIST = fsSettings["min_dist"];
-
     USE_ORB = fsSettings["use_orb"];
 
-    F_THRESHOLD = fsSettings["F_threshold"];
     SHOW_TRACK = fsSettings["show_track"];
     FLOW_BACK = fsSettings["flow_back"];
     RGB_DEPTH_CLOUD = fsSettings["rgb_depth_cloud"];
@@ -148,7 +160,17 @@ void readParameters(std::string config_file)
     depth_estimate_baseline = fsSettings["depth_estimate_baseline"];
     ENABLE_PERF_OUTPUT = fsSettings["enable_perf_output"];
 
+    IMU_FREQ = fsSettings["imu_freq"];
+    IMAGE_FREQ = fsSettings["image_freq"];
+    WARN_IMU_DURATION = fsSettings["warn_imu_duration"];
+    PUB_FLATTEN = fsSettings["pub_flatten"];
+    FLATTEN_COLOR = fsSettings["flatten_color"];
     USE_IMU = fsSettings["imu"];
+    PUB_FLATTEN_FREQ = fsSettings["pub_flatten_freq"];
+    if (PUB_FLATTEN_FREQ == 0) {
+        PUB_FLATTEN_FREQ = 10;
+    }
+
     printf("USE_IMU: %d\n", USE_IMU);
     if(USE_IMU)
     {
@@ -254,9 +276,9 @@ void readParameters(std::string config_file)
         ROS_INFO_STREAM("Synchronized sensors, fix time offset: " << TD);
 
     ROW = fsSettings["image_height"];
-    COL = fsSettings["image_width"];
+    WIDTH = fsSettings["image_width"];
     SHOW_WIDTH = fsSettings["show_width"];
-    ROS_INFO("ROW: %d COL: %d ", ROW, COL);
+    ROS_INFO("ROW: %d COL: %d ", ROW, WIDTH);
 
     if(!USE_IMU)
     {

@@ -76,6 +76,7 @@ class FeaturePerId
     double estimated_depth = -1;
     bool depth_inited = false;
     bool need_triangulation = true;
+    bool is_stereo = false;
     int solve_flag = 0; // 0 haven't solve yet; 1 solve succ; 2 solve fail;
     bool good_for_solving = false;
     int main_cam = 0;
@@ -96,7 +97,7 @@ class FeaturePerId
 class FeatureManager
 {
   public:
-    FeatureTracker * ft = nullptr;
+    FeatureTracker::BaseFeatureTracker * ft = nullptr;
     FeatureManager(Matrix3d _Rs[]);
 
     void setRic(Matrix3d _ric[]);

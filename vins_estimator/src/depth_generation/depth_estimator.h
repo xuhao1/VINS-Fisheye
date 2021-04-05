@@ -81,6 +81,14 @@ public:
     cv::Mat ComputeDispartiyMap(cv::Mat & left, cv::Mat & right);
     cv::Mat ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right);
 
+    void remap_texture(const cv::cuda::GpuMat & img, cv::cuda::GpuMat & texture) {
+        cv::cuda::remap(img, texture, map11, map12, cv::INTER_LINEAR);
+    }
+
+    void remap_texture(const cv::Mat & img, cv::Mat & texture) {
+        cv::remap(img, texture, map11, map12, cv::INTER_LINEAR);
+    }
+
     template<typename cvMat>
     cv::Mat ComputeDepthCloud(cvMat & left, cvMat & right) {
         static int count = 0;

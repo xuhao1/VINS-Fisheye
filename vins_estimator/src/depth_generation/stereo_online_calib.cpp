@@ -53,7 +53,7 @@ struct StereoCostFunctor {
         Eigen::Matrix<T, 3, 3, Eigen::RowMajor> E_eig = Eigen::Map <Eigen::Matrix <T, 3, 3, Eigen::RowMajor>> (E);
         // std::cerr << E_eig << std::endl;
 
-        for (int i = 0; i < left_pts.size(); i++) {
+        for (size_t i = 0; i < left_pts.size(); i++) {
             Eigen::Matrix<T, 1, 1, Eigen::RowMajor> ret = right_pts[i].transpose()*E_eig*left_pts[i]*100.0;
             residual[i] = ret(0, 0);
         }

@@ -281,7 +281,9 @@ void DepthCamManager::update_depth_image(int direction, cv::cuda::GpuMat _up_fro
 
 
     if (pub_cloud_all && RGB_DEPTH_CLOUD == 0) {
-        up_front.download(texture_imgs[direction]);
+        cv::cuda::GpuMat texture;
+        dep_est->remap_texture(up_front, texture);
+        texture.download(texture_imgs[direction]);
     }
 
 
@@ -429,7 +431,7 @@ void DepthCamManager::add_pts_point_cloud(const cv::Mat & pts3d, Eigen::Matrix3d
             double z = vec[2];
             Vector3d pts_i(x, y, z);
 
-            if (pts_i.norm() < depth_cloud_radius) {
+            if (pts_i.norm() < depth_cloud_radius && pts_i.z() > min_z) {
                 Vector3d w_pts_i = R * pts_i + P;
                 // Vector3d w_pts_i = pts_i;
 

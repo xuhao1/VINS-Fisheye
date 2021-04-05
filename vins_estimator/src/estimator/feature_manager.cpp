@@ -9,7 +9,6 @@
 
 #include "feature_manager.h"
 
-// #define DEBUG_DISABLE_RETRIANGULATE
 int FeaturePerId::endFrame()
 {
     return start_frame + feature_per_frame.size() - 1;
@@ -102,7 +101,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const FeatureFrame
     }
 
     if (frame_count < 2 || last_track_num < 20 || long_track_num < KEYFRAME_LONGTRACK_THRES || new_feature_num > 0.5 * last_track_num) {
-        ROS_INFO("Add KF LAST %d LONG %d new %d", last_track_num, long_track_num, new_feature_num);
+        ROS_DEBUG("Add KF LAST %d LONG %d new %d", last_track_num, long_track_num, new_feature_num);
         return true;
     }
 
@@ -119,7 +118,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const FeatureFrame
 
     if (parallax_num == 0)
     {
-        ROS_INFO("Add KF: Parallax num ==0");
+        ROS_DEBUG("Add KF: Parallax num ==0");
         return true;
     }
     else
@@ -129,7 +128,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const FeatureFrame
         last_average_parallax = parallax_sum / parallax_num * FOCAL_LENGTH;
         bool is_kf = parallax_sum / parallax_num >= MIN_PARALLAX;
         if (is_kf) {
-            ROS_INFO("Add KF: Parallax is bigger than required == 0");
+            ROS_DEBUG("Add KF: Parallax is bigger than required == 0");
         } 
         return is_kf;
     }
@@ -214,17 +213,28 @@ std::map<int, double> FeatureManager::getDepthVector()
         auto & it_per_id = _it.second;
         it_per_id.used_num = it_per_id.feature_per_frame.size();
         bool id_in_outouliers = outlier_features.find(it_per_id.feature_id) != outlier_features.end();
+
+        if(it_per_id.is_stereo && it_per_id.used_num >= 2 && dep_vec.size() < MAX_SOLVE_CNT &&  it_per_id.good_for_solving && !id_in_outouliers) {
+            dep_vec[it_per_id.feature_id] = 1. / it_per_id.estimated_depth;
+            ft->setFeatureStatus(it_per_id.feature_id, 3);
+        } else {
+            it_per_id.need_triangulation = true;
+        }
+    }
+    for (auto &_it : feature) {
+        auto & it_per_id = _it.second;
+        it_per_id.used_num = it_per_id.feature_per_frame.size();
+        bool id_in_outouliers = outlier_features.find(it_per_id.feature_id) != outlier_features.end();
+
         if(dep_vec.size() < MAX_SOLVE_CNT && it_per_id.used_num >= 4 
             && it_per_id.good_for_solving && !id_in_outouliers) {
             dep_vec[it_per_id.feature_id] = 1. / it_per_id.estimated_depth;
             ft->setFeatureStatus(it_per_id.feature_id, 3);
         } else {
-            //Clear depth; wait for re triangulate
-#ifndef DEBUG_DISABLE_RETRIANGULATE
             it_per_id.need_triangulation = true;
-#endif
         }
     }
+
     return dep_vec;
 }
 
@@ -365,11 +375,9 @@ void FeatureManager::initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs
                     cv::Point3f point3d(ptsInWorld.x(), ptsInWorld.y(), ptsInWorld.z());
                     //Because PnP require 2d points; We hack here to use only z > 1 unit sphere point to init pnp
                     Eigen::Vector3d pt = it_per_id.feature_per_frame[index].point;
-                    if (pt.z() > 0.1) {
-                        cv::Point2f point2d(pt.x()/pt.z(), pt.y()/pt.z());
-                        pts3D.push_back(point3d);
-                        pts2D.push_back(point2d);                         
-                    }
+                    cv::Point2f point2d(pt.x()/pt.z(), pt.y()/pt.z());
+                    pts3D.push_back(point3d);
+                    pts2D.push_back(point2d);                         
                 }
             }
         }
@@ -462,23 +470,19 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
             }
         }
 
+        if (!has_stereo) {
+            //We need calculate baseline
+            it_per_id.is_stereo = false;
+            if ((_max - _min).norm() < depth_estimate_baseline) {
+                continue;
+            }
+        } else {
+            it_per_id.is_stereo = true;
+        }
+
         if (poses.size() < 2) {
             //No enough information
             continue;
-        }
-
-        if (!has_stereo) {
-            //We need calculate baseline
-            if ((_max - _min).norm() < depth_estimate_baseline) {
-                //it_per_id.good_for_solving = true;
-                //it_per_id.depth_inited = true;
-                //it_per_id.need_triangulation = true;
-                //it_per_id.estimated_depth = INIT_DEPTH;
-                //if (it_per_id.feature_per_frame.size() >= 4) {
-                //    ft->setFeatureStatus(it_per_id.feature_id, 1);            
-                //}
-                continue;
-            }
         }
 
         Eigen::Vector3d point3d;
@@ -559,9 +563,7 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
 
                 it.depth_inited = true;
                 //We retriangulate this point
-#ifndef DEBUG_DISABLE_RETRIANGULATE
                 it.need_triangulation = true;
-#endif
                 if (FISHEYE) {
                     it.estimated_depth = pts_j.norm();
                 } else {

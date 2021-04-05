@@ -218,7 +218,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
-
+    cv::setNumThreads(1);
     if(argc != 2)
     {
         printf("please intput: rosrun vins vins_node [config file] \n"
