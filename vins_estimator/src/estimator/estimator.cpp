@@ -1382,7 +1382,7 @@ void Estimator::optimization()
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     //cout << summary.BriefReport() << endl;
-    // cout << summary.FullReport() << endl;
+    // std::cout << summary.FullReport() << endl;
     static double sum_iterations = 0;
     static double sum_solve_time = 0;
     static int solve_count = 0;
