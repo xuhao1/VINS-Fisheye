@@ -71,7 +71,6 @@ extern int enable_rear_side;
 
 extern int USE_IMU;
 extern int USE_GPU;
-extern int ENABLE_DOWNSAMPLE;
 extern int PUB_RECTIFY;
 extern int USE_ORB;
 extern Eigen::Matrix3d rectify_R_left;
@@ -91,6 +90,7 @@ extern int MAX_SOLVE_CNT;
 extern int MIN_DIST;
 extern int SHOW_TRACK;
 extern int FLOW_BACK;
+extern int SHOW_FEATURE_ID;
 
 extern double IMU_FREQ;
 extern double IMAGE_FREQ;

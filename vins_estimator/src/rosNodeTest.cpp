@@ -233,10 +233,9 @@ int main(int argc, char **argv)
     readParameters(config_file);
     estimator.setParameter();
 
-    if (FISHEYE && ENABLE_DEPTH) {
-        DepthCamManager * cam_manager = new DepthCamManager(n, &(estimator.featureTracker.fisheys_undists[0]));
-        estimator.depth_cam_manager = cam_manager;
-        cam_manager->init_with_extrinsic(estimator.ric[0], estimator.tic[0], estimator.ric[1], estimator.tic[1]);
+    if (FISHEYE) {
+        ROS_ERROR("Please use fisheye.launch or fisheye_node.launch instead for fisheye cameras");
+        exit(-1);
     }
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
@@ -252,7 +251,8 @@ int main(int argc, char **argv)
     ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
 
     std::thread sync_thread{sync_process};
-    ros::spin();
+    ros::MultiThreadedSpinner spinner(3);
+    spinner.spin();
 
     return 0;
 }

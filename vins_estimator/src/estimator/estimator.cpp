@@ -38,7 +38,7 @@ void Estimator::setParameter()
             featureTracker = new FeatureTracker::FisheyeFeatureTrackerOpenMP(this);
         }
     } else {
-        //Not implement yet
+        featureTracker = new FeatureTracker::PinholeFeatureTrackerCuda(this);
     }
 
     f_manager.ft = featureTracker;
@@ -1488,6 +1488,7 @@ void Estimator::optimization()
 
         TicToc t_pre_margin;
         marginalization_info->preMarginalize();
+
         ROS_INFO("pre marginalization %f ms", t_pre_margin.toc());
         
         TicToc t_margin;

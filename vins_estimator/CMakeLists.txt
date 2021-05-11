@@ -161,8 +161,8 @@ target_link_libraries(estimator_lib vins_params_lib vins_lib stereo_depth ${catk
 target_link_libraries(fisheyeNode_lib ${catkin_LIBRARIES} ${OpenCV_LIBS} ${VisionWorks_LIBRARIES} ${LIBDW} OpenMP::OpenMP_CXX)
 
 
-#add_executable(vins_node src/rosNodeTest.cpp)
-#target_link_libraries(vins_node vins_lib estimator_lib vins_frontend stereo_depth vins_factors_lib vins_params_lib)
+add_executable(vins_node src/rosNodeTest.cpp)
+target_link_libraries(vins_node vins_lib estimator_lib vins_frontend stereo_depth vins_factors_lib vins_params_lib)
 
 add_executable(vins_node_fisheye src/rosNodeFisheye.cpp)
 target_link_libraries(vins_node_fisheye vins_lib fisheyeNode_lib estimator_lib vins_frontend stereo_depth vins_factors_lib vins_params_lib)
