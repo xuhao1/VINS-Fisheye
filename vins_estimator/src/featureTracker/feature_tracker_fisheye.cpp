@@ -110,6 +110,8 @@ FeatureFrame FisheyeFeatureTrackerOpenMP::trackImage(double _cur_time, cv::Input
     pyr_sum += t_pyr.toc();
 
     TicToc t_t;
+    set_predict_lock.lock();
+
     #pragma omp parallel sections
     {
         #pragma omp section 
@@ -142,10 +144,9 @@ FeatureFrame FisheyeFeatureTrackerOpenMP::trackImage(double _cur_time, cv::Input
                 // printf("End track down top\n");
             }
         }
-
-        
-       
     }
+       
+    set_predict_lock.unlock();
     
 
     static double lk_sum = 0;
