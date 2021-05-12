@@ -101,7 +101,7 @@ FeatureFrame PinholeFeatureTrackerCuda::trackImage(double _cur_time, cv::InputAr
         cv::cuda::GpuMat gpu_status;
         if(hasPrediction)
         {
-            cur_gpu_pts = cv::cuda::GpuMat(predict_pts);
+            cur_gpu_pts = cv::cuda::GpuMat(prev_gpu_pts);
             cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> d_pyrLK_sparse = cv::cuda::SparsePyrLKOpticalFlow::create(
             cv::Size(21, 21), 1, 30, true);
             d_pyrLK_sparse->calc(prev_gpu_img, cur_gpu_img, prev_gpu_pts, cur_gpu_pts, gpu_status);
