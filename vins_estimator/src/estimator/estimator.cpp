@@ -400,7 +400,7 @@ void Estimator::processMeasurements()
             if(USE_IMU) {
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
                 if (curTime - prevTime > 0.11 || accVector.size()/(curTime - prevTime ) < 350) {
-                    ROS_WARN("Long IMU dt %fms or wrong IMU rate %fms", curTime - prevTime, accVector.size()/(curTime - prevTime));
+                    ROS_WARN("Long IMU dt %fms or wrong IMU rate %fhz", (curTime - prevTime)*1000, accVector.size()/(curTime - prevTime));
                 } 
             }
 
@@ -1382,7 +1382,7 @@ void Estimator::optimization()
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     //cout << summary.BriefReport() << endl;
-    // cout << summary.FullReport() << endl;
+    // std::cout << summary.FullReport() << endl;
     static double sum_iterations = 0;
     static double sum_solve_time = 0;
     static int solve_count = 0;
