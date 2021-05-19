@@ -533,7 +533,7 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
     }
 
     //We use blank images to initialize cuda before every thing
-    if (USE_GPU) {
+    if (USE_GPU && FISHEYE) {
         TicToc blank;
         cv::Mat mat(fisheye_handler->raw_width(), fisheye_handler->raw_height(), CV_8UC3);
         fisheye_handler->imgs_callback(0, mat, mat, true);
@@ -567,9 +567,10 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
         }
     }
 
-
-    timer1 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::processFlattened, (VinsNodeBaseClass*)this, _1 ));
-    if (PUB_FLATTEN) {
-        timer2 = n.createTimer(ros::Duration(1/PUB_FLATTEN_FREQ), boost::bind(&VinsNodeBaseClass::pack_and_send_thread, (VinsNodeBaseClass*)this, _1 ));
+    if (FISHEYE) {
+        timer1 = n.createTimer(ros::Duration(0.004), boost::bind(&VinsNodeBaseClass::processFlattened, (VinsNodeBaseClass*)this, _1 ));
+        if (PUB_FLATTEN) {
+            timer2 = n.createTimer(ros::Duration(1/PUB_FLATTEN_FREQ), boost::bind(&VinsNodeBaseClass::pack_and_send_thread, (VinsNodeBaseClass*)this, _1 ));
+        }
     }
 }

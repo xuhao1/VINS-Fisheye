@@ -6,15 +6,7 @@ cv_bridge::CvImageConstPtr getImageFromMsg(const sensor_msgs::ImageConstPtr &img
     // std::cout << img_msg->encoding << std::endl;
     if (img_msg->encoding == "8UC1" || img_msg->encoding == "mono8")
     {
-        sensor_msgs::Image img;
-        img.header = img_msg->header;
-        img.height = img_msg->height;
-        img.width = img_msg->width;
-        img.is_bigendian = img_msg->is_bigendian;
-        img.step = img_msg->step;
-        img.data = img_msg->data;
-        img.encoding = "mono8";
-        ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::MONO8);
+        ptr = cv_bridge::toCvShare(img_msg, "8UC1");
     } else
     {
         ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::BGR8);        

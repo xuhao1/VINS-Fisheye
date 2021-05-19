@@ -1,0 +1,8 @@
+<launch>
+    <arg name="manager"     default="/swarm_manager"/>
+    <arg name="config_file" default="$(find vins)/../config/realsense/realsense_n3_unsync.yaml" />
+    <node pkg="nodelet" type="nodelet" name="vins_estimator" 
+        args="load vins_nodelet_pkg/VinsNodeletClass $(arg manager)" output="screen" >
+        <param name="config_file" type="string" value="$(arg config_file)"/>
+    </node> 
+</launch>
