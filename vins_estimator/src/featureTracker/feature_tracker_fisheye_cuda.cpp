@@ -194,6 +194,7 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     cur_down_side_un_pts = undistortedPtsSide(cur_down_side_pts, fisheys_undists[1], true);
 
     //Calculate Velocitys
+    //cur_up_top_un_pts_map is not been calculated!
     up_top_vel = ptsVelocity3D(ids_up_top, cur_up_top_un_pts, cur_up_top_un_pts_map, prev_up_top_un_pts_map);
     down_top_vel = ptsVelocity3D(ids_down_top, cur_down_top_un_pts, cur_down_top_un_pts_map, prev_down_top_un_pts_map);
 

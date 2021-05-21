@@ -65,24 +65,25 @@ void PinholeFeatureTracker<CvMat>::readIntrinsicParameter(const vector<string> &
 
 
 template<class CvMat>
-vector<cv::Point2f> PinholeFeatureTracker<CvMat>::undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam)
+vector<cv::Point3f> PinholeFeatureTracker<CvMat>::undistortedPts(vector<cv::Point2f> &pts, camodocal::CameraPtr cam)
 {
-    vector<cv::Point2f> un_pts;
+    vector<cv::Point3f> un_pts;
     for (unsigned int i = 0; i < pts.size(); i++)
     {
         Eigen::Vector2d a(pts[i].x, pts[i].y);
         Eigen::Vector3d b;
         cam->liftProjective(a, b);
-        un_pts.push_back(cv::Point2f(b.x() / b.z(), b.y() / b.z()));
+        b.normalize();
+        un_pts.push_back(cv::Point3f(b.x(), b.y(), b.z()));
     }
     return un_pts;
 }
 
 template<class CvMat>
-std::vector<cv::Point2f> PinholeFeatureTracker<CvMat>::ptsVelocity(vector<int> &ids, vector<cv::Point2f> &pts, 
-                                            map<int, cv::Point2f> &cur_id_pts, map<int, cv::Point2f> &prev_id_pts)
+std::vector<cv::Point3f> PinholeFeatureTracker<CvMat>::ptsVelocity(vector<int> &ids, vector<cv::Point3f> &pts, 
+                                            map<int, cv::Point3f> &cur_id_pts, map<int, cv::Point3f> &prev_id_pts)
 {
-    vector<cv::Point2f> pts_velocity;
+    vector<cv::Point3f> pts_velocity;
     cur_id_pts.clear();
     for (unsigned int i = 0; i < ids.size(); i++)
     {
@@ -96,16 +97,16 @@ std::vector<cv::Point2f> PinholeFeatureTracker<CvMat>::ptsVelocity(vector<int> &
         
         for (unsigned int i = 0; i < pts.size(); i++)
         {
-            std::map<int, cv::Point2f>::iterator it;
-            it = prev_id_pts.find(ids[i]);
+            auto it = prev_id_pts.find(ids[i]);
             if (it != prev_id_pts.end())
             {
                 double v_x = (pts[i].x - it->second.x) / dt;
                 double v_y = (pts[i].y - it->second.y) / dt;
-                pts_velocity.push_back(cv::Point2f(v_x, v_y));
+                double v_z = (pts[i].z - it->second.z) / dt;
+                pts_velocity.push_back(cv::Point3f(v_x, v_y, v_z));
             }
             else
-                pts_velocity.push_back(cv::Point2f(0, 0));
+                pts_velocity.push_back(cv::Point3f(0, 0, 0));
 
         }
     }
@@ -113,7 +114,7 @@ std::vector<cv::Point2f> PinholeFeatureTracker<CvMat>::ptsVelocity(vector<int> &
     {
         for (unsigned int i = 0; i < cur_pts.size(); i++)
         {
-            pts_velocity.push_back(cv::Point2f(0, 0));
+            pts_velocity.push_back(cv::Point3f(0, 0, 0));
         }
     }
     return pts_velocity;

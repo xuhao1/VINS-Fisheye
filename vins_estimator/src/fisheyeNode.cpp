@@ -460,8 +460,8 @@ void VinsNodeBaseClass::imgs_callback(const sensor_msgs::ImageConstPtr &img1_msg
 
 void VinsNodeBaseClass::comp_imgs_callback(const sensor_msgs::CompressedImageConstPtr &img1_msg, const sensor_msgs::CompressedImageConstPtr &img2_msg)
 {
-    auto img1 = getImageFromMsg(img1_msg);
-    auto img2 = getImageFromMsg(img2_msg);
+    auto img1 = getImageFromMsg(img1_msg, cv::IMREAD_GRAYSCALE);
+    auto img2 = getImageFromMsg(img2_msg, cv::IMREAD_GRAYSCALE);
     estimator.inputImage(img1_msg->header.stamp.toSec(), img1, img2);
 }
 
