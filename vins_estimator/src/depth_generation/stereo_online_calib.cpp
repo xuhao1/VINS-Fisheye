@@ -299,7 +299,7 @@ void StereoOnlineCalib::filter_points_by_region(std::vector<cv::Point2f> & good_
 
 }
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
 bool StereoOnlineCalib::calibrate_extrincic(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right) {
 
     std::vector<cv::Point2f> Pts1;

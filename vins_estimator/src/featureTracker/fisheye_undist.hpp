@@ -66,7 +66,7 @@ public:
     }
 
     cv::cuda::GpuMat undist_id_cuda(cv::Mat image, int _id) {
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
     // 0 TOP or DOWN
     // 1 left 2 front 3 right 4 back
 
@@ -79,7 +79,7 @@ public:
     
     cv::cuda::GpuMat img_cuda;
     std::vector<cv::Mat> undist_all_cuda_cpu(const cv::Mat & image, bool use_rgb = false, std::vector<bool> mask = std::vector<bool>(0)) {
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
         TicToc up;
         bool has_mask = mask.size() == undistMaps.size();
         if (use_rgb) {
@@ -112,7 +112,7 @@ public:
     }
 
     std::vector<cv::cuda::GpuMat> undist_all_cuda(const cv::Mat & image, bool use_rgb = false, std::vector<bool> mask = std::vector<bool>(0)) {
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
         cv::cuda::GpuMat img_cuda;
         bool has_mask = mask.size() == undistMaps.size();
         if (use_rgb) {

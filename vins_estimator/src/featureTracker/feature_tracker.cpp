@@ -384,7 +384,7 @@ void BaseFeatureTracker::drawTrackImage(cv::Mat & img, vector<cv::Point2f> pts, 
     }
 }
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
 vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img, 
                         std::vector<cv::cuda::GpuMat> & prev_pyr, vector<cv::Point2f> & prev_pts, 
                         vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts,

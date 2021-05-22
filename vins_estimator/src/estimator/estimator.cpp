@@ -1845,7 +1845,7 @@ void Estimator::outliersRejection(set<int> &removeIndex)
         }
         double ave_err = err / errCnt;
         if(ave_err * FOCAL_LENGTH > THRES_OUTLIER) {
-            ROS_INFO("Removing feature %d on cam %d...  error %f", it_per_id.feature_id, it_per_id.main_cam, ave_err * FOCAL_LENGTH);
+            //ROS_INFO("Removing feature %d on cam %d...  error %f", it_per_id.feature_id, it_per_id.main_cam, ave_err * FOCAL_LENGTH);
             removeIndex.insert(it_per_id.feature_id);
         }
 

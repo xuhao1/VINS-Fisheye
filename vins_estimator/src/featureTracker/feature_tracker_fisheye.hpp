@@ -351,7 +351,7 @@ vector<cv::Point3f> BaseFisheyeFeatureTracker<CvMat>::ptsVelocity3D(vector<int> 
     cur_id_pts.clear();
     for (unsigned int i = 0; i < ids.size(); i++)
     {
-        cur_id_pts.insert(make_pair(ids[i], cur_pts[i]));
+        cur_id_pts[ids[i]] = cur_pts[i];
     }
 
     // caculate points velocity
@@ -369,7 +369,11 @@ vector<cv::Point3f> BaseFisheyeFeatureTracker<CvMat>::ptsVelocity3D(vector<int> 
                 double v_y = (cur_pts[i].y - it->second.y) / dt;
                 double v_z = (cur_pts[i].z - it->second.z) / dt;
                 pts_velocity.push_back(cv::Point3f(v_x, v_y, v_z));
-                // ROS_INFO("Dt %f, vel %f %f %f", v_x, v_y, v_z);
+                // ROS_INFO("id %d Dt %f, cur pts %f %f %f prev %f %f %f vel %f %f %f", 
+                //     ids[i],
+                //     cur_pts[i].x, cur_pts[i].y, cur_pts[i].z,
+                //     it->second.x, it->second.y, it->second.z,
+                //     v_x, v_y, v_z);
 
             }
             else

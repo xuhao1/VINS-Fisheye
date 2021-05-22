@@ -7,7 +7,7 @@
 #include "../utility/tic_toc.h"
 #include "../utility/utility.h"
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudastereo.hpp>
 #endif
@@ -85,7 +85,7 @@ public:
 
     void filter_points_by_region(std::vector<cv::Point2f> & good_left, std::vector<cv::Point2f> & good_right);
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
     void find_corresponding_pts(cv::cuda::GpuMat & img1, cv::cuda::GpuMat & img2, std::vector<cv::Point2f> & Pts1, std::vector<cv::Point2f> & Pts2);
     bool calibrate_extrincic(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right);
 #endif

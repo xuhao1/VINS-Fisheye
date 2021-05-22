@@ -18,7 +18,7 @@ bool _show, bool _enable_extrinsic_calib, std::string _output_path):
     cv::eigen2cv(t01, T);
 
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
     if (!params.use_vworks) {
     	sgmp = new sgm::LibSGMWrapper(params.num_disp, params.p1, params.p2, params.uniquenessRatio, true, 
             sgm::PathType::SCAN_8PATH, params.min_disparity, params.disp12Maxdiff);
@@ -82,7 +82,7 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
     return ComputeDispartiyMap(_left, _right);
 #endif
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
     // stereoRectify(InputArray cameraMatrix1, InputArray distCoeffs1, 
     // InputArray cameraMatrix2, InputArray distCoeffs2, 
     //Size imageSize, InputArray R, InputArray T, OutputArray R1, OutputArray R2, OutputArray P1, OutputArray P2, 
