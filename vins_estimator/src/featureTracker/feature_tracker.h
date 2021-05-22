@@ -97,11 +97,12 @@ protected:
 };
 
 map<int, cv::Point2f> pts_map(vector<int> ids, vector<cv::Point2f> cur_pts);
+map<int, cv::Point3f> pts_map(vector<int> ids, vector<cv::Point3f> cur_pts);
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status);
 void reduceVector(vector<int> &v, vector<uchar> status);
 double distance(cv::Point2f &pt1, cv::Point2f &pt2);
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
 vector<cv::Point2f> opticalflow_track(cv::cuda::GpuMat & cur_img, 
                     std::vector<cv::cuda::GpuMat> & prev_pyr, vector<cv::Point2f> & prev_pts, 
                     vector<int> & ids, vector<int> & track_cnt, std::set<int> removed_pts,

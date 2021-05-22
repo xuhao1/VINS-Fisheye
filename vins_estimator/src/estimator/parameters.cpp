@@ -53,7 +53,6 @@ double depth_estimate_baseline;
 
 int USE_IMU;
 int USE_GPU;
-int ENABLE_DOWNSAMPLE;
 int PUB_RECTIFY;
 int USE_ORB;
 Eigen::Matrix3d rectify_R_left;
@@ -76,6 +75,7 @@ int MIN_DIST;
 double F_THRESHOLD;
 int SHOW_TRACK;
 int FLOW_BACK;
+int SHOW_FEATURE_ID;
 
 int WARN_IMU_DURATION;
 int PUB_FLATTEN;
@@ -136,16 +136,16 @@ void readParameters(std::string config_file)
     USE_ORB = fsSettings["use_orb"];
 
     SHOW_TRACK = fsSettings["show_track"];
+    SHOW_FEATURE_ID = fsSettings["show_track_id"];
     FLOW_BACK = fsSettings["flow_back"];
     RGB_DEPTH_CLOUD = fsSettings["rgb_depth_cloud"];
     ENABLE_DEPTH = fsSettings["enable_depth"];
-    ENABLE_DOWNSAMPLE = fsSettings["enable_downsample"];
     THRES_OUTLIER = fsSettings["thres_outlier"];
     triangulate_max_err = fsSettings["tri_max_err"];
     USE_GPU = fsSettings["use_gpu"];
-#ifndef USE_CUDA
+#ifdef WITHOUT_CUDA
         if (USE_GPU) {
-            std::cerr << "Must set USE_CUDA on in CMake to enable cuda!!!" << std::endl;
+            std::cerr << "Compile with WITHOUT_CUDA mode, use_gpu is not supported!!!" << std::endl;
             exit(-1);
         }
 #endif

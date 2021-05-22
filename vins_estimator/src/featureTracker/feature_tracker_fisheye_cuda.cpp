@@ -2,10 +2,9 @@
 #include "../estimator/estimator.h"
 #include "fisheye_undist.hpp"
 #include "feature_tracker_fisheye.hpp"
-
 namespace FeatureTracker {
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
 void FisheyeFeatureTrackerCuda::drawTrackFisheye(const cv::Mat & img_up,
     const cv::Mat & img_down,
     cv::cuda::GpuMat imUpTop,
@@ -194,6 +193,7 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     cur_down_side_un_pts = undistortedPtsSide(cur_down_side_pts, fisheys_undists[1], true);
 
     //Calculate Velocitys
+    //cur_up_top_un_pts_map is not been calculated!
     up_top_vel = ptsVelocity3D(ids_up_top, cur_up_top_un_pts, cur_up_top_un_pts_map, prev_up_top_un_pts_map);
     down_top_vel = ptsVelocity3D(ids_down_top, cur_down_top_un_pts, cur_down_top_un_pts_map, prev_down_top_un_pts_map);
 
@@ -219,13 +219,14 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     prev_up_top_un_pts_map = cur_up_top_un_pts_map;
     prev_down_top_un_pts_map = cur_down_top_un_pts_map;
     prev_up_side_un_pts_map = cur_up_side_un_pts_map;
-    prev_down_side_un_pts_map = cur_up_side_un_pts_map;
+    prev_down_side_un_pts_map = cur_down_side_un_pts_map;
     prev_time = cur_time;
 
     up_top_prevLeftPtsMap = pts_map(ids_up_top, cur_up_top_pts);
     down_top_prevLeftPtsMap = pts_map(ids_down_top, cur_down_top_pts);
     up_side_prevLeftPtsMap = pts_map(ids_up_side, cur_up_side_pts);
     down_side_prevLeftPtsMap = pts_map(ids_down_side, cur_down_side_pts);
+
 
     // hasPrediction = false;
     auto ff = setup_feature_frame();

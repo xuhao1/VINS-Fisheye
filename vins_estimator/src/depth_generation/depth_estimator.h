@@ -39,7 +39,7 @@ class DepthEstimator {
     cv::Mat cameraMatrix;
     bool show = false;
     cv::Mat _map11, _map12, _map21, _map22;
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
     cv::cuda::GpuMat map11, map12, map21, map22;
     sgm::LibSGMWrapper * sgmp;
 #endif

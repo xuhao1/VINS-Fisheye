@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include "../utility/tic_toc.h"
 #include "../estimator/parameters.h"
+#define SAVE_TO_FILE
 // #define FORCE_CPU_SBGM
 
 DepthEstimator::DepthEstimator(SGMParams _params, Eigen::Vector3d t01, Eigen::Matrix3d R01, cv::Mat camera_mat,
@@ -17,7 +18,7 @@ bool _show, bool _enable_extrinsic_calib, std::string _output_path):
     cv::eigen2cv(t01, T);
 
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
     if (!params.use_vworks) {
     	sgmp = new sgm::LibSGMWrapper(params.num_disp, params.p1, params.p2, params.uniquenessRatio, true, 
             sgm::PathType::SCAN_8PATH, params.min_disparity, params.disp12Maxdiff);
@@ -81,7 +82,7 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
     return ComputeDispartiyMap(_left, _right);
 #endif
 
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
     // stereoRectify(InputArray cameraMatrix1, InputArray distCoeffs1, 
     // InputArray cameraMatrix2, InputArray distCoeffs2, 
     //Size imageSize, InputArray R, InputArray T, OutputArray R1, OutputArray R2, OutputArray P1, OutputArray P2, 
@@ -95,6 +96,14 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
     cv::cuda::remap(left, leftRectify, map11, map12, cv::INTER_LINEAR);
     cv::cuda::remap(right, rightRectify, map21, map22, cv::INTER_LINEAR);
 
+#ifdef SAVE_TO_FILE
+    cv::Mat _l, _r;
+    leftRectify.download(_l);
+    rightRectify.download(_r);
+    
+    cv::imwrite(OUTPUT_FOLDER+"/deep_l.jpg",_l);
+    cv::imwrite(OUTPUT_FOLDER+"/deep_r.jpg",_r);
+#endif
     cv::cuda::normalize(leftRectify, leftRectify, 0, 255, cv::NORM_MINMAX, CV_8UC1);
     cv::cuda::normalize(rightRectify, rightRectify, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 

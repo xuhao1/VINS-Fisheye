@@ -45,15 +45,23 @@ body_T_cam1: !!opencv-matrix
 #Multiple thread support
 multiple_thread: 1
 use_gpu: 1
-use_gpu_acc_flow: 1
-show_track: 0           # publish tracking image as topic
-enable_downsample: 0
+show_track: 1           # publish tracking image as topic
 #feature traker paprameters
-max_cnt: 50            # max feature number in feature tracking
+max_cnt: 100            # max feature number in feature tracking
 min_dist: 30            # min distance between two features 
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
 flow_back: 1            # perform forward and backward optical flow to improve feature tracking accuracy
+max_solve_cnt: 100
+
+pub_flatten: 0
+flatten_color: 0
+warn_imu_freq: 0
+imu_freq: 400
+image_freq: 20
+show_track_id: 1
+thres_outlier : 10000.0
+tri_max_err: 10000.0
 
 #optimization parameters
 max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time

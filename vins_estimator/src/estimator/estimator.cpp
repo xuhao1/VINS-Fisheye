@@ -38,7 +38,7 @@ void Estimator::setParameter()
             featureTracker = new FeatureTracker::FisheyeFeatureTrackerOpenMP(this);
         }
     } else {
-        //Not implement yet
+        featureTracker = new FeatureTracker::PinholeFeatureTrackerCuda(this);
     }
 
     f_manager.ft = featureTracker;
@@ -400,7 +400,7 @@ void Estimator::processMeasurements()
             if(USE_IMU) {
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
                 if (curTime - prevTime > 0.11 || accVector.size()/(curTime - prevTime ) < 350) {
-                    ROS_WARN("Long IMU dt %fms or wrong IMU rate %fms", curTime - prevTime, accVector.size()/(curTime - prevTime));
+                    ROS_WARN("Long IMU dt %fms or wrong IMU rate %fhz", (curTime - prevTime)*1000, accVector.size()/(curTime - prevTime));
                 } 
             }
 
@@ -1382,7 +1382,7 @@ void Estimator::optimization()
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     //cout << summary.BriefReport() << endl;
-    // cout << summary.FullReport() << endl;
+    // std::cout << summary.FullReport() << endl;
     static double sum_iterations = 0;
     static double sum_solve_time = 0;
     static int solve_count = 0;
@@ -1488,11 +1488,12 @@ void Estimator::optimization()
 
         TicToc t_pre_margin;
         marginalization_info->preMarginalize();
-        ROS_INFO("pre marginalization %f ms", t_pre_margin.toc());
+
+        // ROS_INFO("pre marginalization %f ms", t_pre_margin.toc());
         
         TicToc t_margin;
         marginalization_info->marginalize();
-        ROS_INFO("marginalization %f ms", t_margin.toc());
+        // ROS_INFO("marginalization %f ms", t_margin.toc());
 
         std::unordered_map<long, double *> addr_shift;
         for (int i = 1; i <= WINDOW_SIZE; i++)
@@ -1844,7 +1845,7 @@ void Estimator::outliersRejection(set<int> &removeIndex)
         }
         double ave_err = err / errCnt;
         if(ave_err * FOCAL_LENGTH > THRES_OUTLIER) {
-            // ROS_INFO("Removing feature %d on cam %d...  error %f", it_per_id.feature_id, it_per_id.main_cam, ave_err * FOCAL_LENGTH);
+            //ROS_INFO("Removing feature %d on cam %d...  error %f", it_per_id.feature_id, it_per_id.main_cam, ave_err * FOCAL_LENGTH);
             removeIndex.insert(it_per_id.feature_id);
         }
 

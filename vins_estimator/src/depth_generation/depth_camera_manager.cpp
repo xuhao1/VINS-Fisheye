@@ -214,7 +214,7 @@ void DepthCamManager::update_pcl_depth_from_image(ros::Time stamp, int direction
 
 void DepthCamManager::update_depth_image(int direction, cv::cuda::GpuMat _up_front, cv::cuda::GpuMat _down_front, 
     Eigen::Matrix3d ric1, Eigen::Matrix3d ric_depth) {
-#ifdef USE_CUDA
+#ifndef WITHOUT_CUDA
     cv::cuda::GpuMat  up_front, down_front;
     TicToc tic_resize;
     cv::cuda::resize(_up_front, up_front, cv::Size(), downsample_ratio, downsample_ratio);
