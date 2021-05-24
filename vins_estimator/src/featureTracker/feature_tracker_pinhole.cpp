@@ -192,3 +192,4 @@ void PinholeFeatureTracker<CvMat>::setPrediction(const map<int, Eigen::Vector3d>
             predict_pts.push_back(prev_pts[i]);
     }
 }
+}
