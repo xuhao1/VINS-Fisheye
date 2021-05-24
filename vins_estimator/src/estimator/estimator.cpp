@@ -399,8 +399,8 @@ void Estimator::processMeasurements()
             mBuf.lock();
             if(USE_IMU) {
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
-                if (curTime - prevTime > 0.11 || accVector.size()/(curTime - prevTime ) < 350) {
-                    ROS_WARN("Long IMU dt %fms or wrong IMU rate %fhz", (curTime - prevTime)*1000, accVector.size()/(curTime - prevTime));
+                if (curTime - prevTime > 1.1/IMAGE_FREQ || accVector.size()/(curTime - prevTime ) < IMU_FREQ*0.8) {
+                    ROS_WARN("Long image dt %fms or wrong IMU rate %fhz", (curTime - prevTime)*1000, accVector.size()/(curTime - prevTime));
                 } 
             }
 
