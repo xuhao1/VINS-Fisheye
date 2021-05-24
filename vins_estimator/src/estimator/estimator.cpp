@@ -399,7 +399,7 @@ void Estimator::processMeasurements()
             mBuf.lock();
             if(USE_IMU) {
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
-                if (curTime - prevTime > 1.1/IMAGE_FREQ || accVector.size()/(curTime - prevTime ) < IMU_FREQ*0.8) {
+                if (curTime - prevTime > 2.1/IMAGE_FREQ || accVector.size()/(curTime - prevTime ) < IMU_FREQ*0.8) {
                     ROS_WARN("Long image dt %fms or wrong IMU rate %fhz", (curTime - prevTime)*1000, accVector.size()/(curTime - prevTime));
                 } 
             }
@@ -1066,7 +1066,7 @@ void Estimator::vector2double()
 
     auto deps = f_manager.getDepthVector();
     param_feature_id.clear();
-    printf("Feature to solve num: %ld;", deps.size());
+    // printf("Solve features: %ld;", deps.size());
     for (auto & it : deps) {
         // ROS_INFO("Feature %d invdepth %f feature index %d", it.first, it.second, param_feature_id.size());
         para_Feature[param_feature_id.size()][0] = it.second;
@@ -1768,18 +1768,7 @@ double Estimator::reprojectionError(Matrix3d &Ri, Vector3d &Pi, Matrix3d &rici, 
 {
     Vector3d pts_w = Ri * (rici * (depth * uvi) + tici) + Pi;
     Vector3d pts_cj = ricj.transpose() * (Rj.transpose() * (pts_w - Pj) - ticj);
-
-    if (FISHEYE) {
-        //In Fisheye we use 3d unit sphere to represent point position
-        return (pts_cj.normalized() - uvj).norm();
-    } else {
-        Vector2d residual = (pts_cj / pts_cj.z()).head<2>() - uvj.head<2>();
-        double rx = residual.x();
-        double ry = residual.y();
-        return sqrt(rx * rx + ry * ry);
-    }
-
-    return 100000;
+    return (pts_cj.normalized() - uvj).norm();
 }
 
 void Estimator::outliersRejection(set<int> &removeIndex)
@@ -1794,8 +1783,8 @@ void Estimator::outliersRejection(set<int> &removeIndex)
         Vector3d pts_i = it_per_id.feature_per_frame[0].point;
         double depth = it_per_id.estimated_depth;
 
-        // Vector3d pts_w = Rs[imu_i] * (ric[it_per_id.main_cam] * (depth * pts_i) + tic[it_per_id.main_cam]) + Ps[imu_i];
-        // ROS_INFO("PT %d, STEREO %d w %f %f %f drone %f %f %f ptun %f %f %f, depth %f", 
+        Vector3d pts_w = Rs[imu_i] * (ric[it_per_id.main_cam] * (depth * pts_i) + tic[it_per_id.main_cam]) + Ps[imu_i];
+        // ROS_INFO("PT %d, STEREO %d w %3.2f %3.2f %3.2f drone %3.2f %3.2f %3.2f ptun %3.2f %3.2f %3.2f, depth %f", 
         //     it_per_id.feature_id,
         //     it_per_id.feature_per_frame.front().is_stereo, 
         //     pts_w.x(), pts_w.y(), pts_w.z(),
@@ -1806,14 +1795,18 @@ void Estimator::outliersRejection(set<int> &removeIndex)
 
         for (auto &it_per_frame : it_per_id.feature_per_frame)
         {
+
             imu_j++;
                 
             if (imu_i != imu_j)
             {
                 Vector3d pts_j = it_per_frame.point;     
+
                 double tmp_error = reprojectionError(Rs[imu_i], Ps[imu_i], ric[it_per_id.main_cam], tic[it_per_id.main_cam], 
                                                     Rs[imu_j], Ps[imu_j], ric[it_per_id.main_cam], tic[it_per_id.main_cam],
                                                     depth, pts_i, pts_j);
+                // printf("ptun   %3.2f %3.2f %3.2f: %3.2f\n", pts_j.x(), pts_j.y(), pts_j.z(), tmp_error);
+                                                
                 err += tmp_error;
                 errCnt++;
                 //printf("tmp_error %f\n", FOCAL_LENGTH / 1.5 * tmp_error);
@@ -1823,6 +1816,7 @@ void Estimator::outliersRejection(set<int> &removeIndex)
             {
                 
                 Vector3d pts_j_right = it_per_frame.pointRight;
+
                 if(imu_i != imu_j)
                 {            
                     double tmp_error = reprojectionError(Rs[imu_i], Ps[imu_i], ric[0], tic[0], 
@@ -1830,7 +1824,7 @@ void Estimator::outliersRejection(set<int> &removeIndex)
                                                         depth, pts_i, pts_j_right);
                     err += tmp_error;
                     errCnt++;
-                    //printf("tmp_error %f\n", FOCAL_LENGTH / 1.5 * tmp_error);
+                    // printf("ptright %3.2f %3.2f %3.2f: %3.2f\n", pts_j_right.x(), pts_j_right.y(), pts_j_right.z(), tmp_error*FOCAL_LENGTH);
                 }
                 else
                 {
@@ -1839,13 +1833,16 @@ void Estimator::outliersRejection(set<int> &removeIndex)
                                                         depth, pts_i, pts_j_right);
                     err += tmp_error;
                     errCnt++;
-                    //printf("tmp_error %f\n", FOCAL_LENGTH / 1.5 * tmp_error);
+                    // printf("ptright %3.2f %3.2f %3.2f: %3.2f\n", pts_j_right.x(), pts_j_right.y(), pts_j_right.z(), tmp_error*FOCAL_LENGTH);
                 }       
             }
         }
+
+        // printf("\n");
         double ave_err = err / errCnt;
+        //Looks we have some bugs on outlier rejection!
         if(ave_err * FOCAL_LENGTH > THRES_OUTLIER) {
-            //ROS_INFO("Removing feature %d on cam %d...  error %f", it_per_id.feature_id, it_per_id.main_cam, ave_err * FOCAL_LENGTH);
+            // ROS_INFO("Removing feature %d on cam %d...  error %f", it_per_id.feature_id, it_per_id.main_cam, ave_err * FOCAL_LENGTH);
             removeIndex.insert(it_per_id.feature_id);
         }
 
