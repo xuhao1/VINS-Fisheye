@@ -3,9 +3,8 @@
     <arg name="viz"     default="false"/>
     <arg name="config_file" default="$(find vins)/../config/fisheye_ptgrey_n3/fisheye_cuda.yaml" />
     <arg name="output" default="screen" />
-    <node pkg="vins" type="vins_node_fisheye" name="vins_estimator"  output="$(arg output)" >
+    <node pkg="vins" type="vins_node" name="vins_estimator"  output="$(arg output)" >
         <param name="config_file" type="string" value="$(arg config_file)"/>
-        <param name="fisheye_external_flatten" type="bool" value="false"/>
     </node>
 
     <include file="$(find vins)/launch/vins_rviz.launch" if="$(arg viz)" />

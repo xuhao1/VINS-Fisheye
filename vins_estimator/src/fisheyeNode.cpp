@@ -495,8 +495,6 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
 {
     std::string config_file;
     n.getParam("config_file", config_file);
-    bool fisheye_external_flatten;
-    n.getParam("fisheye_external_flatten", fisheye_external_flatten);
     
     std::cout << "config file is " << config_file << '\n';
     readParameters(config_file);
