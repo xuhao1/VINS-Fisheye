@@ -18,6 +18,7 @@ double triangulate_max_err = 0.5;
 
 double IMU_FREQ;
 double IMAGE_FREQ;
+double FOCAL_LENGTH = 460;
 
 std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
