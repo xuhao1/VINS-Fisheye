@@ -276,7 +276,11 @@ void FisheyeFlattenHandler::pack_and_send(ros::Time stamp,
     }
 
     size_t _size = fisheye_up_imgs_cuda.size();
-    
+
+    if (!enable_rear_side) {
+        _size = 4;
+    }
+
     if (!is_color) {
         _size = fisheye_up_imgs_cuda_gray.size();
     }
