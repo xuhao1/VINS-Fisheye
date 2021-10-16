@@ -48,8 +48,8 @@ void registerPub(ros::NodeHandle &n)
     pub_point_cloud = n.advertise<sensor_msgs::PointCloud>("point_cloud", 1000);
     pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>("margin_cloud", 1000);
     pub_key_poses = n.advertise<visualization_msgs::Marker>("key_poses", 1000);
-    pub_camera_pose = n.advertise<nav_msgs::Odometry>("camera_pose", 1000);
-    pub_camera_pose_right = n.advertise<nav_msgs::Odometry>("camera_pose_right", 1000);
+    pub_camera_pose = n.advertise<geometry_msgs::PoseStamped>("camera_pose", 1000);
+    pub_camera_pose_right = n.advertise<geometry_msgs::PoseStamped>("camera_pose_right", 1000);
     pub_rectify_pose_left = n.advertise<geometry_msgs::PoseStamped>("rectify_pose_left", 1000);
     pub_rectify_pose_right = n.advertise<geometry_msgs::PoseStamped>("rectify_pose_right", 1000);
     pub_camera_pose_visual = n.advertise<visualization_msgs::MarkerArray>("camera_pose_visual", 1000);
@@ -192,8 +192,9 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
               << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
         foutC.close();
         Eigen::Vector3d tmp_T = estimator.Ps[WINDOW_SIZE];
-        printf("time: %f, t: %5.3f %5.3f %5.3f q: %4.2f %4.2f %4.2f %4.2f td: %3.1fms\n", header.stamp.toSec(), tmp_T.x(), tmp_T.y(), tmp_T.z(),
-                                                          tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z(), estimator.td*1000);
+        printf("time: %f, kf: %d t: %5.3f %5.3f %5.3f q: %4.2f %4.2f %4.2f %4.2f td: %3.1fms\n", header.stamp.toSec(), !estimator.marginalization_flag,
+            tmp_T.x(), tmp_T.y(), tmp_T.z(),
+            tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z(), estimator.td*1000);
 
         vins::VIOKeyframe vkf;
         vkf.header = header;
@@ -313,32 +314,32 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
         Vector3d P = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[0];
         Quaterniond R = Quaterniond(estimator.Rs[i] * estimator.ric[0]);
 
-        nav_msgs::Odometry odometry;
+        geometry_msgs::PoseStamped odometry;
         odometry.header = header;
         odometry.header.frame_id = "world";
-        odometry.pose.pose.position.x = P.x();
-        odometry.pose.pose.position.y = P.y();
-        odometry.pose.pose.position.z = P.z();
-        odometry.pose.pose.orientation.x = R.x();
-        odometry.pose.pose.orientation.y = R.y();
-        odometry.pose.pose.orientation.z = R.z();
-        odometry.pose.pose.orientation.w = R.w();
+        odometry.pose.position.x = P.x();
+        odometry.pose.position.y = P.y();
+        odometry.pose.position.z = P.z();
+        odometry.pose.orientation.x = R.x();
+        odometry.pose.orientation.y = R.y();
+        odometry.pose.orientation.z = R.z();
+        odometry.pose.orientation.w = R.w();
 
         if(STEREO)
         {
             Vector3d P_r = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[1];
             Quaterniond R_r = Quaterniond(estimator.Rs[i] * estimator.ric[1]);
 
-            nav_msgs::Odometry odometry_r;
+            geometry_msgs::PoseStamped odometry_r;
             odometry_r.header = header;
             odometry_r.header.frame_id = "world";
-            odometry_r.pose.pose.position.x = P_r.x();
-            odometry_r.pose.pose.position.y = P_r.y();
-            odometry_r.pose.pose.position.z = P_r.z();
-            odometry_r.pose.pose.orientation.x = R_r.x();
-            odometry_r.pose.pose.orientation.y = R_r.y();
-            odometry_r.pose.pose.orientation.z = R_r.z();
-            odometry_r.pose.pose.orientation.w = R_r.w();
+            odometry_r.pose.position.x = P_r.x();
+            odometry_r.pose.position.y = P_r.y();
+            odometry_r.pose.position.z = P_r.z();
+            odometry_r.pose.orientation.x = R_r.x();
+            odometry_r.pose.orientation.y = R_r.y();
+            odometry_r.pose.orientation.z = R_r.z();
+            odometry_r.pose.orientation.w = R_r.w();
             pub_camera_pose_right.publish(odometry_r);
             if(PUB_RECTIFY)
             {

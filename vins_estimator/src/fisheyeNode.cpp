@@ -276,7 +276,11 @@ void FisheyeFlattenHandler::pack_and_send(ros::Time stamp,
     }
 
     size_t _size = fisheye_up_imgs_cuda.size();
-    
+
+    if (!enable_rear_side) {
+        _size = 4;
+    }
+
     if (!is_color) {
         _size = fisheye_up_imgs_cuda_gray.size();
     }
@@ -355,6 +359,7 @@ void FisheyeFlattenHandler::readIntrinsicParameter(const vector<string> &calib_f
         if (FISHEYE) {
             ROS_INFO("Flatten read fisheye %s, id %ld", calib_file[i].c_str(), i);
             FisheyeUndist un(calib_file[i].c_str(), i, FISHEYE_FOV, true, WIDTH);
+            FOCAL_LENGTH = un.f_side;
             fisheys_undists.push_back(un);
         }
     }
@@ -495,8 +500,6 @@ void VinsNodeBaseClass::Init(ros::NodeHandle & n)
 {
     std::string config_file;
     n.getParam("config_file", config_file);
-    bool fisheye_external_flatten;
-    n.getParam("fisheye_external_flatten", fisheye_external_flatten);
     
     std::cout << "config file is " << config_file << '\n';
     readParameters(config_file);

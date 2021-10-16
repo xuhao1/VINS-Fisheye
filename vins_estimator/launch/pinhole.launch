@@ -4,7 +4,7 @@
     <arg name="config_file" default="$(find vins)/../config/realsense/realsense_n3_unsync.yaml" />
     <node pkg="nodelet" type="nodelet" args="manager" name="$(arg manager)" if="$(arg internal_manager)" output="screen" /> 
     <node pkg="nodelet" type="nodelet" name="vins_estimator" 
-        args="load vins_nodelet_pkg/VinsNodeletClass /$(arg manager)" output="screen" >
+        args="load vins_nodelet_pkg/VinsNodeletClass /$(arg manager) --no-bond" output="screen" >
         <param name="config_file" type="string" value="$(arg config_file)"/>
     </node> 
 </launch>

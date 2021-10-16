@@ -58,7 +58,7 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     cur_time = _cur_time;
     static double detected_time_sum = 0;
     static double ft_time_sum = 0;
-    static double count = 0;
+    static int count = 0;
     
     if (!is_blank_init) {
         count += 1;
@@ -231,7 +231,8 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     // hasPrediction = false;
     auto ff = setup_feature_frame();
 
-    printf("FT Whole %3.1fms; PTS %ld, STEREO %ld; Detect AVG %3.1fms OpticalFlow %3.1fms concat %3.1fms\n", 
+    printf("%d: trackImage: %3.1fms; PT NUM: %ld, STEREO: %ld; Avg: GFTT %3.1fms LKFlow %3.1fms concat %3.1fms\n", 
+        count,
         t_r.toc(), 
         cur_up_top_un_pts.size() + cur_up_side_un_pts.size(),
         cur_down_side_un_pts.size(),

@@ -128,7 +128,9 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const FeatureFrame
         last_average_parallax = parallax_sum / parallax_num * FOCAL_LENGTH;
         bool is_kf = parallax_sum / parallax_num >= MIN_PARALLAX;
         if (is_kf) {
-            ROS_DEBUG("Add KF: Parallax is bigger than required == 0");
+            ROS_DEBUG("Add KF: Parallax is bigger than required == 0 parallax_sum %f parallax_num %d avg %f MIN_PARALLAX %f", 
+                parallax_sum, parallax_num, parallax_sum / parallax_num, MIN_PARALLAX
+            );
         } 
         return is_kf;
     }
@@ -635,14 +637,18 @@ double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int f
     const FeaturePerFrame &frame_i = it_per_id.feature_per_frame[frame_count - 2 - it_per_id.start_frame];
     const FeaturePerFrame &frame_j = it_per_id.feature_per_frame[frame_count - 1 - it_per_id.start_frame];
 
+#ifdef UNIT_SPHERE_ERROR
+    return (frame_i.point - frame_j.point).norm();
+#else
     if (FISHEYE) {
         return (frame_i.point - frame_j.point).norm();
     } else {
+
         double ans = 0;
         Vector3d p_j = frame_j.point;
 
-        double u_j = p_j(0);
-        double v_j = p_j(1);
+        double u_j = p_j(0)/p_j(2);
+        double v_j = p_j(1)/p_j(2);
 
         Vector3d p_i = frame_i.point;
 
@@ -655,8 +661,9 @@ double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int f
         double du = u_i - u_j, dv = v_i - v_j;
 
         ans = sqrt(du * du + dv * dv);
-
         return ans;
     }
     return -1;
+#endif;
+
 }

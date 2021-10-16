@@ -58,6 +58,9 @@ void PinholeFeatureTracker<CvMat>::readIntrinsicParameter(const vector<string> &
         m_camera.push_back(camera);
         height = camera->imageHeight();
         width = camera->imageWidth();
+        if (camera->modelType() == camodocal::Camera::PINHOLE) {
+            FOCAL_LENGTH = ((camodocal::PinholeCamera*)camera.get())->getParameters().fx();
+        }
     }
     if (calib_file.size() == 2)
         stereo_cam = 1;
@@ -191,4 +194,5 @@ void PinholeFeatureTracker<CvMat>::setPrediction(const map<int, Eigen::Vector3d>
         else
             predict_pts.push_back(prev_pts[i]);
     }
+}
 }
