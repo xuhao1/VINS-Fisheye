@@ -145,6 +145,8 @@ class Estimator
     int inputImageCnt;
     float sum_t_feature;
     int begin_time_count;
+    int mea_track_count = 0;
+    double mea_sum_time = 0;
 
     FeatureManager f_manager;
     MotionEstimator m_estimator;

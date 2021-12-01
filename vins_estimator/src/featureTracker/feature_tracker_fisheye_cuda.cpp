@@ -58,7 +58,9 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
     cur_time = _cur_time;
     static double detected_time_sum = 0;
     static double ft_time_sum = 0;
+    static double track_total_sum = 0;
     static int count = 0;
+    TicToc tic_total;
     
     if (!is_blank_init) {
         count += 1;
@@ -230,12 +232,13 @@ FeatureFrame FisheyeFeatureTrackerCuda::trackImage(double _cur_time,
 
     // hasPrediction = false;
     auto ff = setup_feature_frame();
-
-    printf("%d: trackImage: %3.1fms; PT NUM: %ld, STEREO: %ld; Avg: GFTT %3.1fms LKFlow %3.1fms concat %3.1fms\n", 
+    track_total_sum += tic_total.toc();
+    printf("%d: trackImage: %3.1fms; PT NUM: %ld, STEREO: %ld; Avg: Full %.1fms GFTT %3.1fms LKFlow %3.1fms concat %3.1fms\n", 
         count,
         t_r.toc(), 
         cur_up_top_un_pts.size() + cur_up_side_un_pts.size(),
         cur_down_side_un_pts.size(),
+        track_total_sum/count,
         detected_time_sum/count, 
         ft_time_sum/count,
         concat_cost);

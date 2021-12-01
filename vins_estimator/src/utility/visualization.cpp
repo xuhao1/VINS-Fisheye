@@ -192,9 +192,9 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
               << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
         foutC.close();
         Eigen::Vector3d tmp_T = estimator.Ps[WINDOW_SIZE];
-        printf("time: %f, kf: %d t: %5.3f %5.3f %5.3f q: %4.2f %4.2f %4.2f %4.2f td: %3.1fms\n", header.stamp.toSec(), !estimator.marginalization_flag,
+        printf("time: %f, kf: %d t: %5.3f %5.3f %5.3f q: %4.2f %4.2f %4.2f %4.2f td: %3.1fms backend_time: %.1fms\n", header.stamp.toSec(), !estimator.marginalization_flag,
             tmp_T.x(), tmp_T.y(), tmp_T.z(),
-            tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z(), estimator.td*1000);
+            tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z(), estimator.td*1000, estimator.mea_sum_time/estimator.mea_track_count);
 
         vins::VIOKeyframe vkf;
         vkf.header = header;
