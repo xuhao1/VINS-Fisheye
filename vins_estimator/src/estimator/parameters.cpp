@@ -83,6 +83,8 @@ int PUB_FLATTEN;
 int FLATTEN_COLOR;
 int PUB_FLATTEN_FREQ;
 
+int USE_MSCKF;
+
 std::string configPath;
 
 template <typename T>
@@ -297,6 +299,9 @@ void readParameters(std::string config_file)
         cv::cv2eigen(rectify_right, rectify_R_right);
 
     }
+
+
+    USE_MSCKF = fsSettings["use_msckd"];
 
     //fsSettings.release();
 }

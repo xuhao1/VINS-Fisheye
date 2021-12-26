@@ -39,7 +39,7 @@
 
 
 class DepthCamManager;
-
+class MSCKF;
 
 class Estimator
 {
@@ -72,6 +72,7 @@ class Estimator
     void slideWindowNew();
     void slideWindowOld();
     void optimization();
+    void PerformMSCKF();
     void vector2double();
     void double2vector();
     bool failureDetection();
@@ -189,6 +190,7 @@ class Estimator
     bool initFirstPoseFlag;
 
     DepthCamManager * depth_cam_manager = nullptr;
+    MSCKF * msckf_filter;
 
     queue<double> fisheye_imgs_stampBuf;
 

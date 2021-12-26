@@ -13,6 +13,7 @@
 #include "../depth_generation/depth_camera_manager.h"
 #include "../featureTracker/feature_tracker_fisheye.hpp"
 #include "../featureTracker/feature_tracker_pinhole.hpp"
+#include "MSCKF.hpp"
 
 Estimator::Estimator(): f_manager{Rs}
 {
@@ -62,6 +63,11 @@ void Estimator::setParameter()
     processThread   = std::thread(&Estimator::processMeasurements, this);
     if (FISHEYE && ENABLE_DEPTH) {
         depthThread   = std::thread(&Estimator::processDepthGeneration, this);
+    }
+
+    if (USE_MSCKF) {
+        ROS_INFO("[VINS] Vins will use MSCKF backend");
+        msckf_filter = new MSCKF(); //Init MSCKF Here
     }
 }
 
@@ -186,11 +192,16 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
 
     accBuf.push(make_pair(t, linearAcceleration));
     gyrBuf.push(make_pair(t, angularVelocity));
-
+    
     if (fast_prop_inited) {
+        
         double dt = t - latest_time;
         if (WARN_IMU_DURATION && (dt > (1.5/IMU_FREQ) || dt < (0.5/IMU_FREQ))) {
             ROS_WARN("[inputIMU] IMU sample duration not stable %4.2fms. Check your IMU and system performance", dt*1000);
+        }
+
+        if (USE_MSCKF) {
+            msckf_filter->predict(t, linearAcceleration, angularVelocity);
         }
 
         fastPredictIMU(t, linearAcceleration, angularVelocity);
@@ -1587,6 +1598,12 @@ void Estimator::optimization()
         ROS_INFO("whole marginalization costs: %fms \n", t_whole_marginalization.toc());
     }
     //printf("whole time for ceres: %f \n", t_whole.toc());
+}
+
+void Estimator::PerformMSCKF() {
+    vector2double();
+    // msckf_filter->update();
+    double2vector();
 }
 
 void Estimator::slideWindow()

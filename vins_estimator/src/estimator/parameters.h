@@ -100,6 +100,7 @@ extern int PUB_FLATTEN;
 extern int FLATTEN_COLOR;
 extern int IS_COMP_IMAGES;
 extern int PUB_FLATTEN_FREQ;
+extern int USE_MSCKF;
 
 void readParameters(std::string config_file);
 

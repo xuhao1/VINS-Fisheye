@@ -140,6 +140,8 @@ add_library(vins_lib SHARED
     src/initial/initial_aligment.cpp
     src/initial/initial_sfm.cpp
     src/initial/initial_ex_rotation.cpp
+    src/estimator/MSCKF.cpp
+    src/estimator/MSCKF_state.cpp
 )
 
 
