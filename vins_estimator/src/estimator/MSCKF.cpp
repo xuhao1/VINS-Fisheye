@@ -33,8 +33,23 @@ void MSCKF::predict(const double t, Vector3d _acc, Vector3d _gyro) {
     
     Vector3d angvel_hat = gyro - error_state.bias_gyro; //Planet angular velocity is ignored
     Matrix3d Rq_hat = nominal_state.get_imu_R();
-    Vector3d acc_hat = acc - error_state.bias_acc - Rq_hat*G;
+    Vector3d acc_hat = acc - error_state.bias_acc;
 
+    //Nominal State
+    Quaterniond omg_l(0, angvel_hat.x(), angvel_hat.y(), angvel_hat.z());
+
+    //Naive intergation
+    auto qdot = nominal_state.q_imu * omg_l*dt;
+    auto vdot = Rq_hat*acc_hat + G;
+    auto pdot = nominal_state.v_imu;
+
+    nominal_state.q_imu += qdot*dt;
+    nominal_state.q_imu.normalize();
+    nominal_state.v_imu += vdot*dt;
+    nominal_state.p_imu += pdot*dt;
+
+
+    //Error state
     // Model:
     // d (x_err)/dt = F_mat * x_err + G * n_imu
     // x_err: error state vector
@@ -73,12 +88,15 @@ void MSCKF::predict(const double t, Vector3d _acc, Vector3d _gyro) {
     Phi = Phi + F_mat*dt;
     auto G = G_mat*dt;
     
-    auto X_imu_new = Phi*error_state.get_imu_vector();
+    // auto X_imu_new = Phi*error_state.get_imu_vector();
+    // Suggest by (268)-(269) in Sola J. Quaternion kinematics for the error-state Kalman filter
+    // We don't predict the error state space
+    // Instead, we only predict the P of error state, and predict the nominal state
     auto P_new = Phi*error_state.get_imu_P()*Phi.transpose() + G*Q_imu*G.transpose();
     auto P_imu_other_new = Phi*error_state.get_imu_other_P();
 
     //Set states to error_state
-    error_state.set_imu_vector(X_imu_new);
+    // error_state.set_imu_vector(X_imu_new);
     error_state.set_imu_P(P_new);
     error_state.set_imu_other_P(P_imu_other_new);
 }
