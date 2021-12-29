@@ -27,6 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
     nodelet
     message_filters
     sensor_msgs
+    swarm_msgs
 )
 
 if(ENABLE_BACKWARD)

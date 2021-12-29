@@ -39,11 +39,12 @@ void MSCKF::predict(const double t, Vector3d _acc, Vector3d _gyro) {
     Quaterniond omg_l(0, angvel_hat.x(), angvel_hat.y(), angvel_hat.z());
 
     //Naive intergation
-    auto qdot = nominal_state.q_imu * omg_l*dt;
+    auto qdot = nominal_state.q_imu * omg_l;
     auto vdot = Rq_hat*acc_hat + G;
     auto pdot = nominal_state.v_imu;
 
-    nominal_state.q_imu += qdot*dt;
+    //Internal the quaternion is save as [qw, qx, qy, qz] in Eigen
+    nominal_state.q_imu.coeffs().block<3, 1>(0, 0) += qdot.coeffs().block<3, 1>(0, 0)*dt;
     nominal_state.q_imu.normalize();
     nominal_state.v_imu += vdot*dt;
     nominal_state.p_imu += pdot*dt;
@@ -99,6 +100,16 @@ void MSCKF::predict(const double t, Vector3d _acc, Vector3d _gyro) {
     // error_state.set_imu_vector(X_imu_new);
     error_state.set_imu_P(P_new);
     error_state.set_imu_other_P(P_imu_other_new);
+}
+
+void MSCKF::add_keyframe(const double t) {
+    //For convience, we require t here is exact same to last imu t
+    if (t_last >= 0) {
+        assert(fabs(t - t_last) < 1/IMU_FREQ && "MSCKF new image must be added EXACTLY after the corresponding imu is applied!");
+    }
+
+    error_state.state_augmentation(t);
+    nominal_state.add_keyframe(t);
 }
 
 void MSCKF::update(const FeaturePerId & feature_by_id) {
