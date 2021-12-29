@@ -101,6 +101,16 @@ void MSCKF::predict(const double t, Vector3d _acc, Vector3d _gyro) {
     error_state.set_imu_other_P(P_imu_other_new);
 }
 
+void MSCKF::add_keyframe(const double t) {
+    //For convience, we require t here is exact same to last imu t
+    if (t_last >= 0) {
+        assert(fabs(t - t_last) < 1/IMU_FREQ && "MSCKF new image must be added EXACTLY after the corresponding imu is applied!");
+    }
+
+    error_state.add_keyframe(t);
+    nominal_state.add_keyframe(t);
+}
+
 void MSCKF::update(const FeaturePerId & feature_by_id) {
     
 }

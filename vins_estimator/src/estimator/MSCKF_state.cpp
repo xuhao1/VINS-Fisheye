@@ -47,6 +47,9 @@ void MSCKFErrorStateVector::set_imu_P(Eigen::Matrix<double, IMU_STATE_DIM, IMU_S
     P.block<IMU_STATE_DIM, IMU_STATE_DIM>(0, 0) = _P;
 }
 
+void MSCKFStateVector::add_keyframe(double t) {
+    sld_win_poses.push_back(Swarm::Pose(q_imu, p_imu));
+}
 
 Eigen::Matrix<double, IMU_STATE_DIM, 1> MSCKFErrorStateVector::get_imu_vector() const {
     Eigen::Matrix<double, IMU_STATE_DIM, 1> v;
@@ -71,3 +74,22 @@ void MSCKFErrorStateVector::set_imu_other_P(Eigen::Matrix<double, IMU_STATE_DIM,
     P.block(IMU_STATE_DIM, 0, P.cols() - IMU_STATE_DIM, IMU_STATE_DIM) = _P.transpose();
 }
 
+void MSCKFErrorStateVector::state_augmentation(double t) {
+    // This function  modified from (14) - (16) in [Mourikis et al. 2007].
+    // The original state records image poses in  [Mourikis et al. 2007].
+    // [Li M. et al. 2013] suggest to directly use IMU poses.
+    // Our implementations also record IMU poses because we will make this appliable to arbitrary number of cameras. 
+
+    int prev_dim = state_dim_full();
+    sld_win_poses.push_back(std::make_pair(ang, pos));
+    auto G = MatrixXd(prev_dim + 6, prev_dim);
+    G.setZero();
+
+    auto J = MatrixXd(6, prev_dim);
+    J.block(0, 0, 3, 3) = Matrix3d::Identity();
+    J.block(3, 12, 3, 3)  = Matrix3d::Identity();
+
+    G.block(0, 0, prev_dim, prev_dim).setIdentity();
+    G.block(prev_dim, 0, 6, prev_dim) = J;
+    P = G * P * G.transpose();
+}

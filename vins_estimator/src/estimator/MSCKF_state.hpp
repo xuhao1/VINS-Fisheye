@@ -16,6 +16,8 @@ public:
     std::vector<Swarm::Pose> sld_win_poses;  //[q_{t-1},p_{t-1}], [q_{t-2},p_{t-2}] .., [q_{t-n},p_{t-n}]
 
 
+    void add_keyframe(double t);
+    
     MSCKFStateVector();
     Eigen::VectorXd get_full_vector();
     Matrix3d get_imu_R() const;
@@ -38,6 +40,8 @@ public:
     MSCKFErrorStateVector() {}
 
     MSCKFErrorStateVector(const MSCKFStateVector & state0);
+    
+    void state_augmentation(double t);
     
     VectorXd get_full_vector() const;
     Eigen::Matrix<double, IMU_STATE_DIM, 1> get_imu_vector() const;

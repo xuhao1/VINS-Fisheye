@@ -13,5 +13,6 @@ public:
     MSCKF();
 
     void predict(const double t, Vector3d acc, Vector3d gyro);
+    void add_keyframe(const double t); //For convience, we require t here is exact same to last imu t
     void update(const FeaturePerId & feature_by_id);
 };
