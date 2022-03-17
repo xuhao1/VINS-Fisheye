@@ -1,10 +1,19 @@
 <launch>
+    <arg name="output" default="screen" />
     <arg name="manager"     default="swarm_manager"/>
+    <arg name="viz"     default="false"/>
     <arg name="internal_manager"     default="false"/>
+    <arg name="nodelet"     default="true"/>
     <arg name="config_file" default="$(find vins)/../config/realsense/realsense_n3_unsync.yaml" />
-    <node pkg="nodelet" type="nodelet" args="manager" name="$(arg manager)" if="$(arg internal_manager)" output="screen" /> 
-    <node pkg="nodelet" type="nodelet" name="vins_estimator" 
-        args="load vins_nodelet_pkg/VinsNodeletClass /$(arg manager) --no-bond" output="screen" >
+    <group if="$(arg nodelet)" >
+        <node pkg="nodelet" type="nodelet" args="manager" name="/$(arg manager)" if="$(arg internal_manager)" output="$(arg output)" /> 
+        <node pkg="nodelet" type="nodelet" name="vins_estimator" 
+            args="load vins_nodelet_pkg/VinsNodeletClass /$(arg manager) --no-bond"  output="$(arg output)" >
+            <param name="config_file" type="string" value="$(arg config_file)"/>
+        </node> 
+    </group>
+    <node pkg="vins" type="vins_node" name="vins_estimator"  output="$(arg output)" unless="$(arg nodelet)">
         <param name="config_file" type="string" value="$(arg config_file)"/>
-    </node> 
+    </node>
+    <include file="$(find vins)/launch/vins_rviz.launch" if="$(arg viz)" />
 </launch>

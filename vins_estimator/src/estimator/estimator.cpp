@@ -372,8 +372,6 @@ void Estimator::processDepthGeneration() {
 void Estimator::processMeasurements()
 {
 
-    static int mea_track_count = 0;
-    static double mea_sum_time = 0;
     while (1)
     {
         //printf("process measurments\n");

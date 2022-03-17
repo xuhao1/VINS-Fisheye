@@ -541,33 +541,22 @@ void detectPoints(const cv::cuda::GpuMat & img, vector<cv::Point2f> & n_pts,
 
         n_pts.clear();
 
-        if (cur_pts.size() > 0) {
-            cv::flann::KDTreeIndexParams indexParams;
-            // std::cout << cv::Mat(cur_pts).reshape(1) << std::endl;
-            cv::flann::Index kdtree(cv::Mat(cur_pts).reshape(1), indexParams);
-
-            for (auto & pt : n_pts_tmp) {
-                std::vector<float> query;
-                query.push_back(pt.x); //Insert the 2D point we need to find neighbours to the query
-                query.push_back(pt.y); //Insert the 2D point we need to find neighbours to the query
-
-                vector<int> indices;
-                vector<float> dists;
-                auto ret = kdtree.radiusSearch(query, indices, dists, MIN_DIST, 1);
-
-                if (ret && indices.size() > 0) {
-                    // printf("Ret %ld Found pt %d dis %f ", ret, indices[0], dists[0]);
-                    // printf("New PT %f %f foundpt %f %f Skipping...\n", pt.x, pt.y, cur_pts[indices[0]].x, cur_pts[indices[0]].y);
-                } else {
-                    // printf("No nearest neighbors found\n");
-                    n_pts.push_back(pt);
+        std::vector<cv::Point2f> all_pts = cur_pts;
+        for (auto & pt : n_pts_tmp) {
+            bool has_nearby = false;
+            for (auto &pt_j: all_pts) {
+                if (cv::norm(pt-pt_j) < MIN_DIST) {
+                    has_nearby = true;
+                    break;
                 }
             }
-        } else {
-            n_pts = n_pts_tmp;
+
+            if (!has_nearby) {
+                n_pts.push_back(pt);
+                all_pts.push_back(pt);
             }
         }
-    else {
+    } else {
         n_pts.clear();
     }
 #ifdef PERF_OUTPUT
