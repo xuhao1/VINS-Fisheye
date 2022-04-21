@@ -1262,9 +1262,9 @@ void Estimator::optimization()
     if (last_marginalization_info && last_marginalization_info->valid)
     {
         // construct new marginlization_factor
-        // MarginalizationFactor *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
-        // problem.AddResidualBlock(marginalization_factor, NULL,
-        //                          last_marginalization_parameter_blocks);
+        MarginalizationFactor *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
+        problem.AddResidualBlock(marginalization_factor, NULL,
+                                 last_marginalization_parameter_blocks);
     }
     if(USE_IMU)
     {
