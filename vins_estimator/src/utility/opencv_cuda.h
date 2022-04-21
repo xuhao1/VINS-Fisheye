@@ -12,7 +12,7 @@
 namespace cv {
 namespace cuda {
 #ifndef HAVE_OPENCV_CUDAIMGPROC
-typedef cv::Mat GpuMat;
+// typedef cv::Mat GpuMat;
 #endif
 };
 };

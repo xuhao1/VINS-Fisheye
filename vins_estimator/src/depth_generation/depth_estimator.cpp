@@ -64,11 +64,12 @@ cv::Mat DepthEstimator::ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::G
                                 _map12);
         initUndistortRectifyMap(cameraMatrix, cv::Mat(), R2, P2, imgSize, CV_32FC1, _map21,
                                 _map22);
+#ifndef WITHOUT_CUDA
         map11.upload(_map11);
         map12.upload(_map12);
         map21.upload(_map21);
         map22.upload(_map22);
-
+#endif
         _Q.convertTo(Q, CV_32F);
 
         first_init = false;

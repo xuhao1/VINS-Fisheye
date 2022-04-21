@@ -82,11 +82,15 @@ public:
     cv::Mat ComputeDispartiyMap(cv::cuda::GpuMat & left, cv::cuda::GpuMat & right);
 
     void remap_texture(const cv::cuda::GpuMat & img, cv::cuda::GpuMat & texture) {
+#ifndef WITHOUT_CUDA
         cv::cuda::remap(img, texture, map11, map12, cv::INTER_LINEAR);
+#endif
     }
 
     void remap_texture(const cv::Mat & img, cv::Mat & texture) {
+#ifndef WITHOUT_CUDA
         cv::remap(img, texture, map11, map12, cv::INTER_LINEAR);
+#endif
     }
 
     template<typename cvMat>
