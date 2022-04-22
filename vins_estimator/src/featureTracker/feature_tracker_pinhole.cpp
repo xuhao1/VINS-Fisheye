@@ -137,7 +137,7 @@ void PinholeFeatureTracker<CvMat>::drawTrack(const cv::Mat &imLeft, const cv::Ma
     else
         imTrack = imLeft.clone();
 
-    cv::cvtColor(imTrack, imTrack, CV_GRAY2RGB);
+    cv::cvtColor(imTrack, imTrack, cv::COLOR_GRAY2RGB);
     drawTrackImage(imTrack, curLeftPts, curLeftIds, prevLeftPtsMap);
 
     // for (size_t j = 0; j < curLeftPts.size(); j++)

@@ -81,6 +81,7 @@ bool PinholeFeatureTracker<CvMat>::inBorder(const cv::Point2f &pt) const
 FeatureFrame PinholeFeatureTrackerCuda::trackImage(double _cur_time, cv::InputArray _img, 
         cv::InputArray _img1)
 {
+#ifndef WITHOUT_CUDA
     static double detected_time_sum = 0;
     static double ft_time_sum = 0;
     static int count = 0;
@@ -152,6 +153,6 @@ FeatureFrame PinholeFeatureTrackerCuda::trackImage(double _cur_time, cv::InputAr
         detected_time_sum/count, 
         ft_time_sum/count);
     return featureFrame;
+#endif
 }
-
 }

@@ -69,6 +69,7 @@ void FisheyeFlattenHandler::imgs_callback(double t, const cv::Mat & img1, const 
     TicToc t_f;
 
     if (USE_GPU) {
+#ifndef WITHOUT_CUDA
         // is_color = true;
         if (is_color) {
             fisheye_up_imgs_cuda = fisheys_undists[0].undist_all_cuda(img1, true, mask_up); 
@@ -109,6 +110,7 @@ void FisheyeFlattenHandler::imgs_callback(double t, const cv::Mat & img1, const 
             }
             buf_lock.unlock();
         }
+#endif
     } else {
         if (is_color) {
             fisheys_undists[0].stereo_flatten(img1, img2, &fisheys_undists[1], 
