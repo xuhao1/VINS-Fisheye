@@ -36,7 +36,7 @@ DepthCamManager::DepthCamManager(ros::NodeHandle & _nh, FisheyeUndist * _fisheye
     t_left = Eigen::Quaterniond(Eigen::AngleAxisd(-M_PI / 2, Eigen::Vector3d(1, 0, 0)));
     t_front = t_left * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
     t_right = t_front * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
-    t_rear = t_rear * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
+    t_rear = t_right * Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 1, 0));
     t_down = Eigen::Quaterniond(Eigen::AngleAxisd(M_PI, Eigen::Vector3d(1, 0, 0)));
     t_rotate = Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(0, 0, 1));
     // t_transpose = Eigen::AngleAxisd(0, Eigen::Vector3d(0, 0, 1));
