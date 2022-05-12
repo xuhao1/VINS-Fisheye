@@ -38,7 +38,11 @@ void Estimator::setParameter()
             featureTracker = new FeatureTracker::FisheyeFeatureTrackerOpenMP(this);
         }
     } else {
-        featureTracker = new FeatureTracker::PinholeFeatureTrackerCuda(this);
+        if (USE_GPU) {
+            featureTracker = new FeatureTracker::PinholeFeatureTrackerCuda(this);
+        } else {
+            featureTracker = new FeatureTracker::PinholeFeatureTrackerCPU(this);
+        }
     }
 
     f_manager.ft = featureTracker;
@@ -1379,7 +1383,7 @@ void Estimator::optimization()
     TicToc t_solver;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-    //cout << summary.BriefReport() << endl;
+    cout << summary.BriefReport() << endl;
     // std::cout << summary.FullReport() << endl;
     static double sum_iterations = 0;
     static double sum_solve_time = 0;

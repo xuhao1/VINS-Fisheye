@@ -42,6 +42,11 @@ void ResidualBlockInfo::Evaluate()
     //Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(tmp);
     //std::cout << saes.eigenvalues() << std::endl;
     //ROS_ASSERT(saes.eigenvalues().minCoeff() >= -1e-6);
+    // for (int i = 0; i < static_cast<int>(block_sizes.size()); i++) {
+    //     if (jacobians[i].maxCoeff() > 1e4) {
+    //         std::cout << "big jacobian" << jacobians[i] << std::endl;
+    //     }
+    // }
 
     if (loss_function)
     {
@@ -201,7 +206,7 @@ void MarginalizationInfo::marginalize()
     }
 
     n = pos - m;
-    //ROS_INFO("marginalization, pos: %d, m: %d, n: %d, size: %d", pos, m, n, (int)parameter_block_idx.size());
+    ROS_INFO("marginalization, pos: %d, m: %d, n: %d, size: %d", pos, m, n, (int)parameter_block_idx.size());
     if(m == 0)
     {
         valid = false;
@@ -242,7 +247,6 @@ void MarginalizationInfo::marginalize()
     */
     //multi thread
 
-
     TicToc t_thread_summing;
     pthread_t tids[NUM_THREADS];
     ThreadsStruct threadsstruct[NUM_THREADS];
@@ -273,11 +277,12 @@ void MarginalizationInfo::marginalize()
         A += threadsstruct[i].A;
         b += threadsstruct[i].b;
     }
-    //ROS_DEBUG("thread summing up costs %f ms", t_thread_summing.toc());
+    // ROS_INFO("thread summing up costs %f ms", t_thread_summing.toc());
     //ROS_INFO("A diff %f , b diff %f ", (A - tmp_A).sum(), (b - tmp_b).sum());
-
+    // ROS_INFO("Max H coeff %.2e, max g coeff %.2e", A.maxCoeff(), b.maxCoeff());
 
     //TODO
+    TicToc tic_schur;
     Eigen::MatrixXd Amm = 0.5 * (A.block(0, 0, m, m) + A.block(0, 0, m, m).transpose());
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(Amm);
 
@@ -294,6 +299,11 @@ void MarginalizationInfo::marginalize()
     A = Arr - Arm * Amm_inv * Amr;
     b = brr - Arm * Amm_inv * bmm;
 
+    // ROS_INFO("Max A coeff %.2e, max b coeff %.2e", A.maxCoeff(), b.maxCoeff());
+    //Print time cost 
+    // ROS_INFO("Schur Complement %.1fms", tic_schur.toc());
+
+    TicToc Hack;
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes2(A);
     Eigen::VectorXd S = Eigen::VectorXd((saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array(), 0));
     Eigen::VectorXd S_inv = Eigen::VectorXd((saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array().inverse(), 0));
@@ -303,6 +313,12 @@ void MarginalizationInfo::marginalize()
 
     linearized_jacobians = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
     linearized_residuals = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
+    // ROS_INFO("Hack %.1fms", Hack.toc());
+    // ROS_INFO("Max linearized_jacobians coeff %.2e, max linearized_residuals coeff %.2e", linearized_jacobians.maxCoeff(), linearized_residuals.maxCoeff());
+    // std::cout << "A" << A.block(0, 0, 7, 7) << std::endl;
+    // std::cout << "b" << b.segment(0, 7).transpose() << std::endl;
+    // std::cout << "linearized_jacobians\n" << linearized_jacobians.block(0, 0, 7, 7) << std::endl;
+    // std::cout << "linearized_residuals\n" << linearized_residuals.segment(0, 7).transpose() << std::endl;
     //std::cout << A << std::endl
     //          << std::endl;
     //std::cout << linearized_jacobians << std::endl;
