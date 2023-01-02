@@ -65,7 +65,7 @@ std::vector<cv::Point2f> detect_orb_by_region(cv::InputArray _img, cv::InputArra
 
             for (auto kp : kpts) {
                 kp.pt.x = kp.pt.x + small_width*i;
-                kp.pt.y = kp.pt.y + small_width*j;
+                kp.pt.y = kp.pt.y + small_height*j;
                 ret.push_back(kp.pt);
             }
         }
