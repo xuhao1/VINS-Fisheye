@@ -74,6 +74,9 @@ GPU is default enabled, if you are not using CUDA, disable it in yaml config fil
 
 For rosbag, you can download from https://www.dropbox.com/s/kmakksca3ns6cav/fisheye_vins_2020-01-30-10-38-14.bag?dl=0
 ### Parameters for fisheye
+Calibration tool: 
+https://github.com/HKUST-Swarm/camera_model
+
 ```yaml
 depth_config: "depth_cpu.yaml" # config path for depth estimation, depth_cpu.yaml uses opencv SGBM, depth.yaml uses visionworks SGM, you must install visionworks before use visionworks sgm
 image_width: 600 # For fisheye, this indicate the flattened image width; min 100; 300 - 500 is good for vins
